@@ -1,24 +1,27 @@
+@file:OptIn(androidx.compose.ui.text.ExperimentalTextApi::class)
+
 package com.ivor.ivormusic.ui.theme
 
 import androidx.compose.material3.Typography
+import androidx.compose.ui.text.ExperimentalTextApi
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
-
-// FALLBACK: Use Default font because 'roboto_flex.ttf' is missing in res/font/.
-// To use Expressive Typography with Variable Fonts:
-// 1. Download Roboto Flex (Variable) .ttf
-// 2. Place it in app/src/main/res/font/roboto_flex.ttf
-// 3. Uncomment the code below and usage.
-
-/*
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontVariation
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.googlefonts.Font
+import androidx.compose.ui.text.googlefonts.GoogleFont
+import androidx.compose.ui.text.style.TextGeometricTransform
+import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.sp
 import com.ivor.ivormusic.R
 
+// Material 3 Expressive Typography using Roboto Flex Variable Font
+// Using FontVariation.width() for wider/condensed text styles
+
+// Standard width (100f) - for body text and regular content
 val RobotoFlex = FontFamily(
-    Font(
+    androidx.compose.ui.text.font.Font(
         resId = R.font.roboto_flex,
         variationSettings = FontVariation.Settings(
             FontVariation.width(100f),
@@ -27,18 +30,28 @@ val RobotoFlex = FontFamily(
     )
 )
 
-val RobotoFlexWide = FontFamily(
-    Font(
-        resId = R.font.roboto_flex,
-        variationSettings = FontVariation.Settings(
-            FontVariation.width(115f),
-            FontVariation.weight(700)
-        )
-    )
+// Google Font Provider
+val provider = GoogleFont.Provider(
+    providerAuthority = "com.google.android.gms.fonts",
+    providerPackage = "com.google.android.gms",
+    certificates = R.array.com_google_android_gms_fonts_certs
 )
 
+val MontserratFont = GoogleFont("Montserrat")
+
+val MontserratFamily = FontFamily(
+    Font(googleFont = MontserratFont, fontProvider = provider, weight = FontWeight.Black),
+    Font(googleFont = MontserratFont, fontProvider = provider, weight = FontWeight.ExtraBold),
+    Font(googleFont = MontserratFont, fontProvider = provider, weight = FontWeight.Bold),
+    Font(googleFont = MontserratFont, fontProvider = provider, weight = FontWeight.SemiBold),
+    Font(googleFont = MontserratFont, fontProvider = provider, weight = FontWeight.Medium),
+    Font(googleFont = MontserratFont, fontProvider = provider, weight = FontWeight.Normal),
+    Font(googleFont = MontserratFont, fontProvider = provider, weight = FontWeight.Light),
+)
+
+// Medium width (110f) - for section headers
 val RobotoFlexMediumWidth = FontFamily(
-    Font(
+    androidx.compose.ui.text.font.Font(
         resId = R.font.roboto_flex,
         variationSettings = FontVariation.Settings(
             FontVariation.width(110f),
@@ -46,20 +59,16 @@ val RobotoFlexMediumWidth = FontFamily(
         )
     )
 )
-*/
-
-// Using Default for now to ensure compile
-val RobotoFlex = FontFamily.Default
-val RobotoFlexWide = FontFamily.Default
-val RobotoFlexMediumWidth = FontFamily.Default
 
 val Typography = Typography(
     displayLarge = TextStyle(
-        fontFamily = RobotoFlexWide,
-        fontWeight = FontWeight.Bold,
-        fontSize = 57.sp,
-        lineHeight = 64.sp,
-        letterSpacing = (-0.25).sp
+        fontFamily = MontserratFamily,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 68.sp,
+        textGeometricTransform = TextGeometricTransform(scaleX = 1.5f), // Stretch horizontally
+        letterSpacing = (-0.05).em,
+        lineHeight = 0.8.em,
+        platformStyle = PlatformTextStyle(includeFontPadding = false)
     ),
     headlineSmall = TextStyle(
         fontFamily = RobotoFlexMediumWidth,

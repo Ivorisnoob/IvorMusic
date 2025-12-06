@@ -73,6 +73,7 @@ import com.ivor.ivormusic.data.Song
 import com.ivor.ivormusic.ui.components.MiniPlayer
 import com.ivor.ivormusic.ui.player.PlayerViewModel
 
+
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun HomeScreen(
@@ -289,20 +290,12 @@ fun HeroSection(
         Column {
             Text(
                 text = "Your",
-                style = MaterialTheme.typography.displayLarge.copy(
-                    fontSize = 68.sp,
-                    fontWeight = FontWeight.Bold,
-                    lineHeight = 68.sp
-                ),
+                style = MaterialTheme.typography.displayLarge,
                 color = Color.White
             )
             Text(
                 text = "Mix",
-                style = MaterialTheme.typography.displayLarge.copy(
-                    fontSize = 68.sp,
-                    fontWeight = FontWeight.Bold,
-                    lineHeight = 68.sp
-                ),
+                style = MaterialTheme.typography.displayLarge,
                 color = Color.White
             )
             
