@@ -43,6 +43,10 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -542,7 +546,7 @@ private fun LibrarySongCard(
                     .padding(horizontal = 14.dp)
             ) {
                 Text(
-                    text = song.title.takeIf { it.isNotBlank() && it != "Unknown" } ?: "Untitled Song",
+                    text = song.title.takeIf { !it.isNullOrBlank() && !it.startsWith("Unknown", ignoreCase = true) } ?: "Untitled Song",
                     color = textColor,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium,
@@ -550,30 +554,16 @@ private fun LibrarySongCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(2.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
                     if (isYouTube) {
-                        Box(
-                            modifier = Modifier
-                                .background(Color(0xFFFF0000), RoundedCornerShape(4.dp))
-                                .padding(horizontal = 5.dp, vertical = 1.dp)
-                        ) {
-                            Text(
-                                "YT",
-                                color = Color.White,
-                                fontSize = 8.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(6.dp))
+                        /* removed YT badge */
                     }
                     Text(
-                        text = song.artist.takeIf { it.isNotBlank() && it != "Unknown Artist" } ?: "Unknown Artist",
+                        text = song.artist.takeIf { !it.isNullOrBlank() && !it.startsWith("Unknown", ignoreCase = true) } ?: "Unknown Artist",
                         color = secondaryTextColor,
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                }
             }
             
             // Play indicator
@@ -637,6 +627,213 @@ private fun EmptyStateCard(
                 subtitle,
                 style = MaterialTheme.typography.bodyMedium,
                 color = secondaryTextColor
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class)
+@Composable
+fun PlaylistDetailScreen(
+    playlist: com.ivor.ivormusic.data.PlaylistDisplayItem,
+    onBack: () -> Unit,
+    onSongClick: (Song) -> Unit,
+    onPlayAll: (List<Song>) -> Unit,
+    viewModel: HomeViewModel,
+    isDarkMode: Boolean
+) {
+    var songs by remember { mutableStateOf<List<Song>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    
+    val backgroundColor = if (isDarkMode) Color.Black else Color(0xFFF8F8F8)
+    val textColor = if (isDarkMode) Color.White else Color.Black
+    val secondaryTextColor = if (isDarkMode) Color(0xFFB3B3B3) else Color(0xFF666666)
+    val accentColor = if (isDarkMode) Color(0xFF3D5AFE) else Color(0xFF6200EE)
+
+    LaunchedEffect(playlist.id) {
+        val listId = if (playlist.url?.contains("list=") == true) playlist.url.substringAfter("list=") else playlist.id
+        if (listId.isNotEmpty()) {
+            songs = viewModel.fetchPlaylistSongs(listId)
+        }
+        isLoading = false
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(backgroundColor)
+            .windowInsetsPadding(WindowInsets.statusBars)
+    ) {
+        // Toolbar
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = textColor
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                "Playlist",
+                style = MaterialTheme.typography.titleMedium,
+                color = textColor
+            )
+        }
+
+        if (isLoading) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                LoadingIndicator(
+                    modifier = Modifier.size(48.dp),
+                    color = accentColor
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 120.dp)
+            ) {
+                // Header
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Surface(
+                            modifier = Modifier.size(200.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            shadowElevation = 10.dp
+                        ) {
+                            if (playlist.thumbnailUrl != null) {
+                                AsyncImage(
+                                    model = playlist.thumbnailUrl,
+                                    contentDescription = playlist.name,
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(Color.Gray),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.Rounded.PlaylistPlay,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(64.dp)
+                                    )
+                                }
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(24.dp))
+                        
+                        Text(
+                            text = playlist.name ?: "Unknown Playlist",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = textColor,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        
+                        Text(
+                            text = "by ${playlist.uploaderName ?: "Unknown"}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = secondaryTextColor
+                        )
+                        
+                        Spacer(modifier = Modifier.height(24.dp))
+                        
+                        // Play All Button
+                        Button(
+                            onClick = { onPlayAll(songs) },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = accentColor,
+                                contentColor = Color.White
+                            ),
+                            modifier = Modifier.fillMaxWidth(0.6f)
+                        ) {
+                            Icon(Icons.Rounded.PlayArrow, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Play All")
+                        }
+                    }
+                }
+                
+                // Songs List
+                items(songs) { song ->
+                    LibrarySongCard(
+                        song = song,
+                        onClick = { onSongClick(song) },
+                        cardColor = if (isDarkMode) Color(0xFF1E1E1E) else Color.White,
+                        textColor = textColor,
+                        secondaryTextColor = secondaryTextColor,
+                        accentColor = accentColor,
+                        isYouTube = true
+                    )
+                }
+                
+                if (songs.isEmpty() && !isLoading) {
+                    item {
+                        Box(
+                             modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp),
+                             contentAlignment = Alignment.Center
+                        ) {
+                             Text(
+                                 "No songs found in this playlist",
+                                 color = secondaryTextColor,
+                                 style = MaterialTheme.typography.bodyLarge
+                             )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun LibraryContent(
+    songs: List<Song>,
+    onSongClick: (Song) -> Unit,
+    onPlayQueue: (List<Song>) -> Unit,
+    contentPadding: PaddingValues,
+    viewModel: HomeViewModel,
+    isDarkMode: Boolean
+) {
+    var viewedPlaylist by remember { mutableStateOf<com.ivor.ivormusic.data.PlaylistDisplayItem?>(null) }
+    
+    androidx.compose.animation.AnimatedContent(targetState = viewedPlaylist, label = "LibraryNav") { playlist ->
+        if (playlist == null) {
+            LibraryScreen(
+                songs = songs,
+                onSongClick = onSongClick,
+                onPlaylistClick = { viewedPlaylist = it },
+                contentPadding = contentPadding,
+                viewModel = viewModel,
+                isDarkMode = isDarkMode
+            )
+        } else {
+            PlaylistDetailScreen(
+                playlist = playlist,
+                onBack = { viewedPlaylist = null },
+                onSongClick = onSongClick,
+                onPlayAll = { playlistSongs ->
+                    onPlayQueue(playlistSongs) 
+                },
+                viewModel = viewModel,
+                isDarkMode = isDarkMode
             )
         }
     }

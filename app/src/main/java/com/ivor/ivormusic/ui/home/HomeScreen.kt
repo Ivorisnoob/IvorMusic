@@ -125,6 +125,7 @@ fun HomeScreen(
     
     val currentSong by playerViewModel.currentSong.collectAsState()
     val isPlaying by playerViewModel.isPlaying.collectAsState()
+    val isBuffering by playerViewModel.isBuffering.collectAsState()
     val progress by playerViewModel.progress.collectAsState()
     val duration by playerViewModel.duration.collectAsState()
     
@@ -229,20 +230,9 @@ fun HomeScreen(
                     2 -> LibraryContent(
                         songs = songs,
                         onSongClick = onSongClick,
-                        onPlaylistClick = { playlist ->
-                             scope.launch {
-                                 isPlaylistLoading = true
-                                 val url = playlist.url ?: ""
-                                 val listId = if (url.contains("list=")) url.substringAfter("list=") else ""
-                                 if (listId.isNotEmpty()) {
-                                     val playlistSongs = viewModel.fetchPlaylistSongs(listId)
-                                     if (playlistSongs.isNotEmpty()) {
-                                         playerViewModel.playQueue(playlistSongs)
-                                         showPlayerSheet = true
-                                     }
-                                 }
-                                 isPlaylistLoading = false
-                             }
+                        onPlayQueue = { queue ->
+                            playerViewModel.playQueue(queue)
+                            showPlayerSheet = true
                         },
                         contentPadding = PaddingValues(bottom = 160.dp),
                         viewModel = viewModel,
@@ -285,6 +275,7 @@ fun HomeScreen(
         MiniPlayer(
             currentSong = currentSong,
             isPlaying = isPlaying,
+            isBuffering = isBuffering,
             progress = progressFraction,
             onPlayPauseClick = { playerViewModel.togglePlayPause() },
             onNextClick = { playerViewModel.skipToNext() },
@@ -505,9 +496,9 @@ fun HeroSection(
             Spacer(modifier = Modifier.height(8.dp))
             
             Text(
-                text = firstSong?.artist?.let { artist ->
-                    secondSong?.artist?.let { "$artist, $it" } ?: artist
-                } ?: "Traveler, Water Houses",
+                text = (firstSong?.artist.takeIf { !it.isNullOrBlank() && !it.startsWith("Unknown", ignoreCase = true) } ?: "Unknown Artist").let { artist ->
+                    (secondSong?.artist.takeIf { !it.isNullOrBlank() && !it.startsWith("Unknown", ignoreCase = true) })?.let { second -> "$artist, $second" } ?: artist
+                },
                 style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
                 color = secondaryTextColor,
                 maxLines = 1,
@@ -829,13 +820,13 @@ fun QuickPicksSection(
                 
                 // Song Title
                 Text(
-                    text = song.title,
+                    text = song.title.takeIf { !it.isNullOrBlank() && !it.startsWith("Unknown", ignoreCase = true) } ?: "Untitled Song",
                     maxLines = 1,
                     style = MaterialTheme.typography.bodyLarge,
                     color = textColor
                 )
                   Text(
-                    text = song.artist,
+                    text = song.artist.takeIf { !it.isNullOrBlank() && !it.startsWith("Unknown", ignoreCase = true) } ?: "Unknown Artist",
                     maxLines = 1,
                     style = MaterialTheme.typography.labelMedium,
                     color = secondaryTextColor
@@ -849,18 +840,35 @@ fun QuickPicksSection(
 fun LibraryContent(
     songs: List<Song>,
     onSongClick: (Song) -> Unit,
-    onPlaylistClick: (com.ivor.ivormusic.data.PlaylistDisplayItem) -> Unit,
+    onPlayQueue: (List<Song>) -> Unit, // New param
     contentPadding: PaddingValues,
     viewModel: HomeViewModel,
     isDarkMode: Boolean
 ) {
-    com.ivor.ivormusic.ui.library.LibraryScreen(
-        songs = songs,
-        onSongClick = onSongClick,
-        onPlaylistClick = onPlaylistClick,
-        contentPadding = contentPadding,
-        viewModel = viewModel,
-        isDarkMode = isDarkMode
-    )
+    var viewedPlaylist by remember { mutableStateOf<com.ivor.ivormusic.data.PlaylistDisplayItem?>(null) }
+    
+    androidx.compose.animation.AnimatedContent(targetState = viewedPlaylist, label = "LibraryNav") { playlist ->
+        if (playlist == null) {
+            com.ivor.ivormusic.ui.library.LibraryScreen(
+                songs = songs,
+                onSongClick = onSongClick,
+                onPlaylistClick = { viewedPlaylist = it },
+                contentPadding = contentPadding,
+                viewModel = viewModel,
+                isDarkMode = isDarkMode
+            )
+        } else {
+            com.ivor.ivormusic.ui.library.PlaylistDetailScreen(
+                playlist = playlist,
+                onBack = { viewedPlaylist = null },
+                onSongClick = onSongClick,
+                onPlayAll = { playlistSongs ->
+                    onPlayQueue(playlistSongs) 
+                },
+                viewModel = viewModel,
+                isDarkMode = isDarkMode
+            )
+        }
+    }
 }
 

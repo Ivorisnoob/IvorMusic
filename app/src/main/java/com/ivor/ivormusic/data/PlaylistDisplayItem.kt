@@ -6,4 +6,7 @@ data class PlaylistDisplayItem(
     val uploaderName: String,
     val itemCount: Int = -1,
     val thumbnailUrl: String? = null
-)
+) {
+    val id: String
+        get() = if (url.contains("list=")) url.substringAfter("list=") else url
+}

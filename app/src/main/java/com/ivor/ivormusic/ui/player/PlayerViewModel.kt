@@ -36,6 +36,9 @@ class PlayerViewModel(private val context: Context) : ViewModel() {
     private val _duration = MutableStateFlow(0L)
     val duration: StateFlow<Long> = _duration.asStateFlow()
 
+    private val _isBuffering = MutableStateFlow(false)
+    val isBuffering: StateFlow<Boolean> = _isBuffering.asStateFlow()
+
     init {
         initializeController()
         startProgressUpdates()
@@ -52,6 +55,7 @@ class PlayerViewModel(private val context: Context) : ViewModel() {
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
+                    _isBuffering.value = playbackState == Player.STATE_BUFFERING
                     if (playbackState == Player.STATE_READY) {
                         _duration.value = controller?.duration ?: 0L
                     }

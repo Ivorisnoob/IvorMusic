@@ -492,7 +492,7 @@ private fun SongCard(
                     .padding(horizontal = 14.dp)
             ) {
                 Text(
-                    song.title,
+                    text = song.title.takeIf { !it.isNullOrBlank() && !it.startsWith("Unknown") } ?: "Untitled Song",
                     color = textColor,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold,
@@ -502,22 +502,10 @@ private fun SongCard(
                 Spacer(modifier = Modifier.height(2.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (isYouTube) {
-                        Box(
-                            modifier = Modifier
-                                .background(Color(0xFFFF0000), RoundedCornerShape(4.dp))
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                "YouTube",
-                                color = Color.White,
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        Spacer(modifier = Modifier.size(8.dp))
+                        /* removed YT badge */
                     }
                     Text(
-                        song.artist,
+                        text = song.artist.takeIf { !it.isNullOrBlank() && !it.startsWith("Unknown") } ?: "Unknown Artist",
                         color = secondaryTextColor,
                         style = MaterialTheme.typography.bodyMedium,
                         maxLines = 1,

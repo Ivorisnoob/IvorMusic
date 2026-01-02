@@ -69,6 +69,7 @@ fun PlayerScreen(
 ) {
     val currentSong by viewModel.currentSong.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
+    val isBuffering by viewModel.isBuffering.collectAsState()
     val progress by viewModel.progress.collectAsState()
     val duration by viewModel.duration.collectAsState()
     
@@ -114,7 +115,7 @@ fun PlayerScreen(
             ) {
                 if (currentSong?.albumArtUri != null || currentSong?.thumbnailUrl != null) {
                     AsyncImage(
-                        model = currentSong?.albumArtUri ?: currentSong?.thumbnailUrl,
+                        model = currentSong?.highResThumbnailUrl ?: currentSong?.albumArtUri,
                         contentDescription = "Album Art",
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
@@ -147,14 +148,14 @@ fun PlayerScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = currentSong?.title ?: "No Song Playing",
+                            text = (currentSong?.title.takeIf { !it.isNullOrBlank() && !it.startsWith("Unknown") } ?: "Untitled Song"),
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = currentSong?.artist ?: "Unknown Artist",
+                            text = (currentSong?.artist.takeIf { !it.isNullOrBlank() && !it.startsWith("Unknown") } ?: "Unknown Artist"),
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
@@ -250,11 +251,18 @@ fun PlayerScreen(
                     modifier = Modifier.size(80.dp),
                     shape = RoundedCornerShape(24.dp)
                 ) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (isPlaying) "Pause" else "Play",
-                        modifier = Modifier.size(40.dp)
-                    )
+                    if (isBuffering) {
+                        androidx.compose.material3.CircularProgressIndicator(
+                            modifier = Modifier.size(40.dp),
+                            color = MaterialTheme.colorScheme.onSurface 
+                        )
+                    } else {
+                        Icon(
+                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (isPlaying) "Pause" else "Play",
+                            modifier = Modifier.size(40.dp)
+                        )
+                    }
                 }
 
                 FilledIconButton(

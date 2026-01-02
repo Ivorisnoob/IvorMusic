@@ -206,37 +206,61 @@ class YouTubeRepository(private val context: Context) {
      * Get liked music.
      */
     suspend fun getLikedMusic(): List<Song> = withContext(Dispatchers.IO) {
-        // Since parsing "LM" is hard via NewPipe authenticated, 
-        // we can try fetching it via our new Internal API if NewPipe fails.
-        // For now, let's just stick to the search/playlist fallback or NewPipe if it worked.
-        // Actually, NewPipe's getPlaylist("LM") usually fails without cookies.
-        // Let's try to search for "Liked Music" or use our internal parser if we had time to impl it for playlists.
-        // For simplicity:
+        if (sessionManager.isLoggedIn()) {
+            try {
+                val json = fetchInternalApi("FEmusic_liked_videos")
+                val songs = parseSongsFromInternalJson(json)
+                if (songs.isNotEmpty()) return@withContext songs
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
         getPlaylist("LM") 
     }
     
     suspend fun getPlaylist(playlistId: String): List<Song> = withContext(Dispatchers.IO) {
-        try {
-             // If we are getting LM or RTM, we might need Internal API.
-             // But let's try NewPipe first. If it fails, we return empty.
-             val playlistUrl = "https://music.youtube.com/playlist?list=$playlistId"
-             val ytService = ServiceList.all().find { it.serviceInfo.name == "YouTube" } ?: return@withContext emptyList()
-             val playlistExtractor = ytService.getPlaylistExtractor(playlistUrl)
-             playlistExtractor.fetchPage()
+        val newPipeSongs = try {
+             val urlId = if (playlistId.startsWith("VL")) playlistId.removePrefix("VL") else playlistId
+             val playlistUrl = "https://www.youtube.com/playlist?list=$urlId"
              
-             playlistExtractor.initialPage.items.filterIsInstance<StreamInfoItem>().mapNotNull { item ->
-                 Song.fromYouTube(
-                     videoId = extractVideoId(item.url),
-                     title = item.name ?: "Unknown",
-                     artist = item.uploaderName ?: "Unknown Artist",
-                     album = playlistExtractor.name ?: "",
-                     duration = item.duration * 1000L,
-                     thumbnailUrl = item.thumbnails?.firstOrNull()?.url
-                 )
-             }
+             // Try NewPipe
+             val ytService = ServiceList.all().find { it.serviceInfo.name == "YouTube" } 
+             if (ytService != null) {
+                 val playlistExtractor = ytService.getPlaylistExtractor(playlistUrl)
+                 playlistExtractor.fetchPage()
+                 
+                 playlistExtractor.initialPage.items.filterIsInstance<StreamInfoItem>().mapNotNull { item ->
+                     Song.fromYouTube(
+                         videoId = extractVideoId(item.url),
+                         title = item.name ?: "Unknown",
+                         artist = item.uploaderName ?: "Unknown Artist",
+                         album = playlistExtractor.name ?: "",
+                         duration = item.duration * 1000L,
+                         thumbnailUrl = item.thumbnails?.firstOrNull()?.url
+                     )
+                 }
+             } else emptyList()
         } catch (e: Exception) {
              emptyList()
         }
+
+        if (newPipeSongs.isNotEmpty()) return@withContext newPipeSongs
+
+        // Fallback to Internal API (Works for LM, RTM, and public playlists if authenticated)
+        if (sessionManager.isLoggedIn()) {
+             try {
+                 // Ensure ID is browseId format (usually adding VL prefix for playlists if not present, though newer API might just take PL)
+                 // Actually for browse endpoint, usually we send the ID as is, or VL+ID.
+                 val browseId = if (playlistId.startsWith("PL") || playlistId.startsWith("RD")) "VL$playlistId" else playlistId
+                 val json = fetchInternalApi(browseId)
+                 val internalSongs = parseSongsFromInternalJson(json)
+                 if (internalSongs.isNotEmpty()) return@withContext internalSongs
+             } catch (e: Exception) {
+                 e.printStackTrace()
+             }
+        }
+        
+        emptyList()
     }
 
     suspend fun fetchAccountInfo() = withContext(Dispatchers.IO) {
@@ -338,15 +362,14 @@ class YouTubeRepository(private val context: Context) {
                     val videoId = extractValueFromRuns(item, "videoId") ?: return@forEach
                     
                     // Extract Title
-                    val titleFormatted = item.optJSONObject("flexColumns")
-                        ?.optJSONArray("0")?.optJSONObject(0)
+                    val flexColumns = item.optJSONArray("flexColumns")
+                    val titleFormatted = flexColumns?.optJSONObject(0)
                         ?.optJSONObject("musicResponsiveListItemFlexColumnRenderer")
                         ?.optJSONObject("text")
                     val title = getRunText(titleFormatted) ?: "Unknown Title"
 
                     // Extract Artist and Album
-                    val subtitleFormatted = item.optJSONObject("flexColumns")
-                        ?.optJSONArray("1")?.optJSONObject(0)
+                    val subtitleFormatted = flexColumns?.optJSONObject(1)
                         ?.optJSONObject("musicResponsiveListItemFlexColumnRenderer")
                         ?.optJSONObject("text")
                     
@@ -463,7 +486,11 @@ class YouTubeRepository(private val context: Context) {
     }
 
     private fun getRunText(formattedString: org.json.JSONObject?): String? {
-        val runs = formattedString?.optJSONArray("runs") ?: return null
+        if (formattedString == null) return null
+        if (formattedString.has("simpleText")) {
+            return formattedString.optString("simpleText")
+        }
+        val runs = formattedString.optJSONArray("runs") ?: return null
         val sb = StringBuilder()
         for (i in 0 until runs.length()) {
             sb.append(runs.optJSONObject(i)?.optString("text") ?: "")

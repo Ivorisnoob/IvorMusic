@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
@@ -61,6 +62,7 @@ import com.ivor.ivormusic.data.Song
 fun MiniPlayer(
     currentSong: Song?,
     isPlaying: Boolean,
+    isBuffering: Boolean,
     progress: Float,
     onPlayPauseClick: () -> Unit,
     onNextClick: () -> Unit,
@@ -104,7 +106,7 @@ fun MiniPlayer(
                     )
                 },
             onClick = onClick,
-            color = Color(0xFF1E1E1E),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
             shape = RoundedCornerShape(50), // Full pill shape
             shadowElevation = 8.dp,
             tonalElevation = 4.dp
@@ -120,6 +122,9 @@ fun MiniPlayer(
                     modifier = Modifier.size(52.dp),
                     contentAlignment = Alignment.Center
                 ) {
+                    val trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+                    val progressColor = MaterialTheme.colorScheme.primary
+
                     // Progress ring behind the album art
                     Canvas(modifier = Modifier.size(52.dp)) {
                         val strokeWidth = 3.dp.toPx()
@@ -127,14 +132,14 @@ fun MiniPlayer(
                         
                         // Track (background ring)
                         drawCircle(
-                            color = Color(0xFF333333),
+                            color = trackColor,
                             radius = radius,
                             style = Stroke(width = strokeWidth)
                         )
                         
                         // Progress arc
                         drawArc(
-                            color = Color(0xFFB8D4FF),
+                            color = progressColor,
                             startAngle = -90f,
                             sweepAngle = 360f * animatedProgress,
                             useCenter = false,
@@ -163,14 +168,14 @@ fun MiniPlayer(
                             Box(
                                 modifier = Modifier
                                     .size(44.dp)
-                                    .background(Color(0xFF2A2A2A)),
+                                    .background(MaterialTheme.colorScheme.surfaceVariant),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Rounded.MusicNote,
                                     contentDescription = null,
                                     modifier = Modifier.size(20.dp),
-                                    tint = Color(0xFF888888)
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -184,34 +189,47 @@ fun MiniPlayer(
                     Text(
                         text = currentSong?.title ?: "",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         text = currentSong?.artist ?: "",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFFB3B3B3),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
 
-                // Play/Pause Button with shape morphing
-                FilledIconButton(
-                    onClick = onPlayPauseClick,
-                    modifier = Modifier.size(44.dp),
-                    shapes = IconButtonDefaults.shapes(), // Bouncy shape morphing
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = Color(0xFFB8D4FF),
-                        contentColor = Color.Black
-                    )
-                ) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (isPlaying) "Pause" else "Play",
-                        modifier = Modifier.size(24.dp)
-                    )
+                // Play/Pause Button with shape morphing or Loading
+                if (isBuffering) {
+                    Box(
+                        modifier = Modifier.size(44.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            strokeWidth = 2.dp
+                        )
+                    }
+                } else {
+                    FilledIconButton(
+                        onClick = onPlayPauseClick,
+                        modifier = Modifier.size(44.dp),
+                        shapes = IconButtonDefaults.shapes(), // Bouncy shape morphing
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    ) {
+                        Icon(
+                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (isPlaying) "Pause" else "Play",
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
@@ -222,8 +240,8 @@ fun MiniPlayer(
                     modifier = Modifier.size(44.dp),
                     shapes = IconButtonDefaults.shapes(),
                     colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = Color(0xFF333333),
-                        contentColor = Color.White
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 ) {
                     Icon(
