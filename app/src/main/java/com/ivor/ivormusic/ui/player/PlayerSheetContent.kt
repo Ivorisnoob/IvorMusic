@@ -330,12 +330,18 @@ private fun PlayerView(
                     contentColor = MaterialTheme.colorScheme.onPrimary
                 )
             ) {
-                if (isBuffering) {
-                    LoadingIndicator(
+                // Play/Pause Button with shape morphing or Loading
+                if (isBuffering && !isPlaying) {
+                    Box(
                         modifier = Modifier.size(44.dp),
-                        color = MaterialTheme.colorScheme.onPrimary 
-                    )
-                } else {
+                        contentAlignment = Alignment.Center
+                    ) {
+                        LoadingIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                } else {  
                     Icon(
                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                         contentDescription = if (isPlaying) "Pause" else "Play",

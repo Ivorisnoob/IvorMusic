@@ -65,7 +65,8 @@ class PlayerViewModel(private val context: Context) : ViewModel() {
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     _isBuffering.value = playbackState == Player.STATE_BUFFERING
-                    if (playbackState == Player.STATE_READY) {
+                    if (playbackState == Player.STATE_READY || playbackState == Player.STATE_ENDED) {
+                        _isBuffering.value = false
                         _duration.value = controller?.duration ?: 0L
                     }
                 }

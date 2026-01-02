@@ -203,7 +203,7 @@ fun MiniPlayer(
                 }
 
                 // Play/Pause Button with shape morphing or Loading
-                if (isBuffering) {
+                if (isBuffering && !isPlaying) {
                     Box(
                         modifier = Modifier.size(44.dp),
                         contentAlignment = Alignment.Center
