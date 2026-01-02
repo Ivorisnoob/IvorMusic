@@ -18,9 +18,29 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a")
+            isUniversalApk = false
+        }
+    }
+    //Only for Release apk that is why I hardcoded cause if you want to make as a maintainer release apk you can change here in future we will make it the correct way
+    signingConfigs {
+        create("release") {
+            storeFile = file("${project.rootDir}/keystore/ivormusic.jks")
+            storePassword = "password"
+            keyAlias = "key0"
+            keyPassword = "password"
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

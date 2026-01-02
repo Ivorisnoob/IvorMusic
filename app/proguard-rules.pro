@@ -19,3 +19,13 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Fix for NewPipe Extractor / Rhino (missing java.beans and javax.script on Android)
+-dontwarn org.mozilla.javascript.**
+-dontwarn java.beans.**
+-dontwarn javax.script.**
+-dontwarn com.google.common.**
+
+# Keep NewPipe Extractor classes if they are being stripped too aggressively
+-keep class org.schabi.newpipe.extractor.** { *; }
+-keep class org.mozilla.javascript.** { *; }
