@@ -13,6 +13,8 @@ import com.ivor.ivormusic.data.SongSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.guava.future
 import com.google.common.util.concurrent.ListenableFuture
 
@@ -39,7 +41,10 @@ class MusicService : MediaLibraryService() {
     }
 
     private fun initializeSessionAndPlayer() {
-        player = ExoPlayer.Builder(this).build()
+        player = ExoPlayer.Builder(this)
+            .setAudioAttributes(androidx.media3.common.AudioAttributes.DEFAULT, true)
+            .setHandleAudioBecomingNoisy(true)
+            .build()
         youtubeRepository = YouTubeRepository(this)
 
         val sessionIntent = packageManager.getLaunchIntentForPackage(packageName).let {
@@ -53,26 +58,27 @@ class MusicService : MediaLibraryService() {
                 mediaItems: MutableList<MediaItem>
             ): ListenableFuture<MutableList<MediaItem>> {
                 return serviceScope.future {
-                    val resolvedItems = mutableListOf<MediaItem>()
-                    for (item in mediaItems) {
-                        val videoId = item.mediaId
-                        // Check if it's a YouTube media item (we use videoId as mediaId)
-                        if (item.requestMetadata.mediaUri == null || item.requestMetadata.mediaUri.toString().isEmpty()) {
-                            val streamUrl = youtubeRepository.getStreamUrl(videoId)
-                            if (streamUrl != null) {
-                                resolvedItems.add(
-                                    item.buildUpon()
-                                        .setUri(streamUrl)
-                                        .build()
-                                )
-                            } else {
-                                resolvedItems.add(item)
-                            }
-                        } else {
-                            resolvedItems.add(item)
+                    val deferredItems = mediaItems.map { item ->
+                        async(Dispatchers.IO) {
+                            val videoId = item.mediaId
+                            if (item.localConfiguration?.uri == null) {
+                                try {
+                                    // Timeout to avoid blocking indefinitely
+                                    val streamUrl = kotlinx.coroutines.withTimeoutOrNull(8000) {
+                                        youtubeRepository.getStreamUrl(videoId)
+                                    }
+                                    if (streamUrl != null) {
+                                        item.buildUpon()
+                                            .setUri(android.net.Uri.parse(streamUrl))
+                                            .build()
+                                    } else item
+                                } catch (e: Exception) {
+                                    item
+                                }
+                            } else item
                         }
                     }
-                    resolvedItems
+                    deferredItems.awaitAll().toMutableList()
                 }
             }
 

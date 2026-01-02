@@ -20,7 +20,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -46,6 +46,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -63,6 +66,8 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -72,6 +77,19 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.ivor.ivormusic.data.Song
 import com.ivor.ivormusic.ui.home.HomeViewModel
+
+/**
+ * Segmented list shape helper for Expressive design
+ */
+@Composable
+private fun getSegmentedShape(index: Int, count: Int, cornerSize: androidx.compose.ui.unit.Dp = 28.dp): Shape {
+    return when {
+        count == 1 -> RoundedCornerShape(cornerSize)
+        index == 0 -> RoundedCornerShape(topStart = cornerSize, topEnd = cornerSize)
+        index == count - 1 -> RoundedCornerShape(bottomStart = cornerSize, bottomEnd = cornerSize)
+        else -> RectangleShape
+    }
+}
 
 /**
  * Library Screen with Material 3 Expressive design
@@ -86,6 +104,7 @@ import com.ivor.ivormusic.ui.home.HomeViewModel
 fun LibraryScreen(
     songs: List<Song>,
     onSongClick: (Song) -> Unit,
+    onPlayQueue: (List<Song>, Song?) -> Unit,
     onPlaylistClick: (com.ivor.ivormusic.data.PlaylistDisplayItem) -> Unit = {},
     contentPadding: PaddingValues,
     viewModel: HomeViewModel,
@@ -176,8 +195,7 @@ fun LibraryScreen(
                     start = 20.dp,
                     end = 20.dp,
                     bottom = contentPadding.calculateBottomPadding()
-                ),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                )
             ) {
             when (tabs[selectedTab]) {
                 "All" -> {
@@ -218,8 +236,8 @@ fun LibraryScreen(
                                     Surface(
                                         shape = RoundedCornerShape(12.dp),
                                         color = Color(0xFFFF0000).copy(alpha = 0.15f),
-                                        modifier = Modifier.clickable { /* Play all logic */ }
-                                    ) {
+                                      modifier = Modifier.clickable { onPlayQueue(likedSongs, null) }
+                                  ) {
                                         Row(
                                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                             verticalAlignment = Alignment.CenterVertically
@@ -243,16 +261,23 @@ fun LibraryScreen(
                                 Spacer(modifier = Modifier.height(16.dp))
                             }
                             
-                            items(likedSongs.take(5)) { song ->
+                            itemsIndexed(likedSongs.take(5)) { index, song ->
                                 LibrarySongCard(
                                     song = song,
-                                    onClick = { onSongClick(song) },
+                                    onClick = { onPlayQueue(likedSongs, song) },
                                     cardColor = cardColor,
                                     textColor = textColor,
                                     secondaryTextColor = secondaryTextColor,
                                     accentColor = accentColor,
-                                    isYouTube = true
+                                    isYouTube = true,
+                                    shape = getSegmentedShape(index, likedSongs.take(5).size)
                                 )
+                                if (index < likedSongs.take(5).size - 1) {
+                                    HorizontalDivider(
+                                        modifier = Modifier.padding(horizontal = 24.dp),
+                                        color = textColor.copy(alpha = 0.08f)
+                                    )
+                                }
                             }
                         }
 
@@ -268,15 +293,22 @@ fun LibraryScreen(
                             Spacer(modifier = Modifier.height(12.dp))
                         }
                         if (songs.isNotEmpty()) {
-                            items(songs.take(10)) { song ->
+                            itemsIndexed(songs.take(10)) { index, song ->
                                 LibrarySongCard(
                                     song = song,
-                                    onClick = { onSongClick(song) },
+                                    onClick = { onPlayQueue(songs, song) },
                                     cardColor = cardColor,
                                     textColor = textColor,
                                     secondaryTextColor = secondaryTextColor,
-                                    accentColor = accentColor
+                                    accentColor = accentColor,
+                                    shape = getSegmentedShape(index, songs.take(10).size)
                                 )
+                                if (index < songs.take(10).size - 1) {
+                                    HorizontalDivider(
+                                        modifier = Modifier.padding(horizontal = 24.dp),
+                                        color = textColor.copy(alpha = 0.08f)
+                                    )
+                                }
                             }
                         } else {
                             item {
@@ -301,16 +333,23 @@ fun LibraryScreen(
                             )
                         }
                     } else {
-                        items(allSongs) { song ->
+                        itemsIndexed(allSongs) { index, song ->
                             LibrarySongCard(
                                 song = song,
-                                onClick = { onSongClick(song) },
+                                onClick = { onPlayQueue(allSongs, song) },
                                 cardColor = cardColor,
                                 textColor = textColor,
                                 secondaryTextColor = secondaryTextColor,
                                 accentColor = accentColor,
-                                isYouTube = song.source == com.ivor.ivormusic.data.SongSource.YOUTUBE
+                                isYouTube = song.source == com.ivor.ivormusic.data.SongSource.YOUTUBE,
+                                shape = getSegmentedShape(index, allSongs.size)
                             )
+                            if (index < allSongs.size - 1) {
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(horizontal = 24.dp),
+                                    color = textColor.copy(alpha = 0.08f)
+                                )
+                            }
                         }
                     }
                 }
@@ -328,58 +367,76 @@ fun LibraryScreen(
                             )
                         }
                     } else {
-                        items(userPlaylists) { playlist ->
+                        itemsIndexed(userPlaylists) { index, playlist ->
                             // Custom Playlist Card
-                            Row(
+                            val shape = getSegmentedShape(index, userPlaylists.size)
+                            Surface(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(cardColor)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(cardColor)
-                                    .clickable { onPlaylistClick(playlist) }
-                                    .padding(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                    .clip(shape)
+                                    .clickable { onPlaylistClick(playlist) },
+                                shape = shape,
+                                color = cardColor,
+                                tonalElevation = 1.dp
                             ) {
-                                // Playlist Thumbnail
-                                Box(
-                                    modifier = Modifier
-                                        .size(56.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(Color.Gray),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (playlist.thumbnailUrl != null) {
-                                         AsyncImage(
-                                            model = playlist.thumbnailUrl,
-                                            contentDescription = playlist.name,
-                                            modifier = Modifier.fillMaxSize(),
-                                            contentScale = ContentScale.Crop
+                                ListItem(
+                                    headlineContent = {
+                                        Text(
+                                            text = playlist.name ?: "Unknown Playlist",
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            fontWeight = FontWeight.Bold,
+                                            color = textColor
                                         )
-                                    } else {
+                                    },
+                                    supportingContent = {
+                                        Text(
+                                            text = playlist.uploaderName ?: "Unknown Author",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = secondaryTextColor
+                                        )
+                                    },
+                                    leadingContent = {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(56.dp)
+                                                .clip(RoundedCornerShape(14.dp))
+                                                .background(Color.Gray.copy(alpha = 0.2f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            if (playlist.thumbnailUrl != null) {
+                                                 AsyncImage(
+                                                    model = playlist.thumbnailUrl,
+                                                    contentDescription = playlist.name,
+                                                    modifier = Modifier.fillMaxSize(),
+                                                    contentScale = ContentScale.Crop
+                                                )
+                                            } else {
+                                                Icon(
+                                                    Icons.Rounded.PlaylistPlay,
+                                                    contentDescription = null,
+                                                    tint = Color.White
+                                                )
+                                            }
+                                        }
+                                    },
+                                    trailingContent = {
                                         Icon(
-                                            Icons.Rounded.PlaylistPlay,
+                                            Icons.Rounded.PlayArrow,
                                             contentDescription = null,
-                                            tint = Color.White
+                                            tint = accentColor,
+                                            modifier = Modifier.size(24.dp)
                                         )
-                                    }
-                                }
-                                
-                                Spacer(modifier = Modifier.width(16.dp))
-                                
-                                Column {
-                                    Text(
-                                        text = playlist.name ?: "Unknown Playlist",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.Bold,
-                                        color = textColor
+                                    },
+                                    colors = ListItemDefaults.colors(
+                                        containerColor = Color.Transparent
                                     )
-                                    Text(
-                                        text = playlist.uploaderName ?: "Unknown Author",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = secondaryTextColor
-                                    )
-                                }
+                                )
+                            }
+                            if (index < userPlaylists.size - 1) {
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(horizontal = 24.dp),
+                                    color = textColor.copy(alpha = 0.08f)
+                                )
                             }
                         }
                     }
@@ -387,16 +444,51 @@ fun LibraryScreen(
                 
                 "Artists" -> {
                     val artists = songs.groupBy { it.artist }.keys.toList().sorted()
-                    items(artists) { artist ->
+                    itemsIndexed(artists) { index, artist ->
+                        val shape = getSegmentedShape(index, artists.size)
                         Surface(
-                            modifier = Modifier.fillMaxWidth().clickable { /* Handle artist click */ },
-                            color = Color.Transparent
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(shape)
+                                .clickable { /* Handle artist click */ },
+                            shape = shape,
+                            color = cardColor,
+                            tonalElevation = 1.dp
                         ) {
-                            Text(
-                                text = artist,
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = textColor,
-                                modifier = Modifier.padding(vertical = 12.dp)
+                            ListItem(
+                                headlineContent = {
+                                    Text(
+                                        text = artist,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = textColor
+                                    )
+                                },
+                                leadingContent = {
+                                    Surface(
+                                        modifier = Modifier.size(48.dp),
+                                        shape = CircleShape,
+                                        color = accentColor.copy(alpha = 0.1f)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                Icons.Rounded.MusicNote, // Use MusicNote as generic artist icon
+                                                contentDescription = null,
+                                                tint = accentColor,
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                        }
+                                    }
+                                },
+                                colors = ListItemDefaults.colors(
+                                    containerColor = Color.Transparent
+                                )
+                            )
+                        }
+                        if (index < artists.size - 1) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 24.dp),
+                                color = textColor.copy(alpha = 0.08f)
                             )
                         }
                     }
@@ -404,16 +496,51 @@ fun LibraryScreen(
                 
                 "Albums" -> {
                     val albums = songs.groupBy { it.album }.keys.toList().sorted()
-                    items(albums) { album ->
+                    itemsIndexed(albums) { index, album ->
+                        val shape = getSegmentedShape(index, albums.size)
                          Surface(
-                            modifier = Modifier.fillMaxWidth().clickable { /* Handle album click */ },
-                            color = Color.Transparent
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(shape)
+                                .clickable { /* Handle album click */ },
+                            shape = shape,
+                            color = cardColor,
+                            tonalElevation = 1.dp
                         ) {
-                            Text(
-                                text = album,
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = textColor,
-                                modifier = Modifier.padding(vertical = 12.dp)
+                            ListItem(
+                                headlineContent = {
+                                    Text(
+                                        text = album,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = textColor
+                                    )
+                                },
+                                leadingContent = {
+                                    Surface(
+                                        modifier = Modifier.size(48.dp),
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = accentColor.copy(alpha = 0.1f)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                Icons.Rounded.Album,
+                                                contentDescription = null,
+                                                tint = accentColor,
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                        }
+                                    }
+                                },
+                                colors = ListItemDefaults.colors(
+                                    containerColor = Color.Transparent
+                                )
+                            )
+                        }
+                        if (index < albums.size - 1) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 24.dp),
+                                color = textColor.copy(alpha = 0.08f)
                             )
                         }
                     }
@@ -484,101 +611,86 @@ private fun LibrarySongCard(
     textColor: Color,
     secondaryTextColor: Color,
     accentColor: Color,
-    isYouTube: Boolean = false
+    isYouTube: Boolean = false,
+    shape: Shape = RoundedCornerShape(20.dp)
 ) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
+            .clip(shape)
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(18.dp),
+        shape = shape,
         color = cardColor,
-        tonalElevation = 2.dp,
-        shadowElevation = 2.dp
+        tonalElevation = 1.dp
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Album Art
-            Box(
-                modifier = Modifier
-                    .size(52.dp)
-                    .clip(RoundedCornerShape(14.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                if (song.albumArtUri != null || song.thumbnailUrl != null) {
-                    AsyncImage(
-                        model = song.highResThumbnailUrl ?: song.albumArtUri ?: song.thumbnailUrl,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                if (isYouTube) Color(0xFFFF0000).copy(alpha = 0.2f)
-                                else accentColor.copy(alpha = 0.2f)
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Rounded.MusicNote,
-                            contentDescription = null,
-                            tint = if (isYouTube) Color(0xFFFF0000) else accentColor,
-                            modifier = Modifier.size(26.dp)
-                        )
-                    }
-                }
-            }
-            
-            // Song info
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 14.dp)
-            ) {
+        ListItem(
+            headlineContent = {
                 Text(
                     text = song.title.takeIf { !it.isNullOrBlank() && !it.startsWith("Unknown", ignoreCase = true) } ?: "Untitled Song",
                     color = textColor,
                     style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
+                    fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(2.dp))
-                    if (isYouTube) {
-                        /* removed YT badge */
+            },
+            supportingContent = {
+                Text(
+                    text = song.artist.takeIf { !it.isNullOrBlank() && !it.startsWith("Unknown", ignoreCase = true) } ?: "Unknown Artist",
+                    color = secondaryTextColor,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            },
+            leadingContent = {
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(RoundedCornerShape(14.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (song.albumArtUri != null || song.thumbnailUrl != null) {
+                        AsyncImage(
+                            model = song.highResThumbnailUrl ?: song.albumArtUri ?: song.thumbnailUrl,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    if (isYouTube) Color(0xFFFF0000).copy(alpha = 0.2f)
+                                    else accentColor.copy(alpha = 0.2f)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Rounded.MusicNote,
+                                contentDescription = null,
+                                tint = if (isYouTube) Color(0xFFFF0000) else accentColor,
+                                modifier = Modifier.size(26.dp)
+                            )
+                        }
                     }
-                    Text(
-                        text = song.artist.takeIf { !it.isNullOrBlank() && !it.startsWith("Unknown", ignoreCase = true) } ?: "Unknown Artist",
-                        color = secondaryTextColor,
-                        style = MaterialTheme.typography.bodySmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-            }
-            
-            // Play indicator
-            Surface(
-                modifier = Modifier.size(40.dp),
-                shape = RoundedCornerShape(12.dp),
-                color = accentColor.copy(alpha = 0.12f)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        Icons.Rounded.PlayArrow,
-                        contentDescription = "Play",
-                        tint = accentColor,
-                        modifier = Modifier.size(22.dp)
-                    )
                 }
-            }
-        }
+            },
+            trailingContent = {
+                Icon(
+                    Icons.Rounded.PlayArrow,
+                    contentDescription = "Play",
+                    tint = accentColor,
+                    modifier = Modifier.size(24.dp)
+                )
+            },
+            colors = ListItemDefaults.colors(
+                containerColor = Color.Transparent,
+                headlineColor = textColor,
+                supportingColor = secondaryTextColor
+            )
+        )
     }
 }
 
@@ -634,8 +746,7 @@ private fun EmptyStateCard(
 fun PlaylistDetailScreen(
     playlist: com.ivor.ivormusic.data.PlaylistDisplayItem,
     onBack: () -> Unit,
-    onSongClick: (Song) -> Unit,
-    onPlayAll: (List<Song>) -> Unit,
+    onPlayQueue: (List<Song>, Song?) -> Unit,
     viewModel: HomeViewModel,
     isDarkMode: Boolean
 ) {
@@ -752,7 +863,7 @@ fun PlaylistDetailScreen(
                         
                         // Play All Button
                         Button(
-                            onClick = { onPlayAll(songs) },
+                            onClick = { onPlayQueue(songs, null) },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = accentColor,
                                 contentColor = Color.White
@@ -767,16 +878,23 @@ fun PlaylistDetailScreen(
                 }
                 
                 // Songs List
-                items(songs) { song ->
+                itemsIndexed(songs) { index, song ->
                     LibrarySongCard(
                         song = song,
-                        onClick = { onSongClick(song) },
+                        onClick = { onPlayQueue(songs, song) },
                         cardColor = if (isDarkMode) Color(0xFF1E1E1E) else Color.White,
                         textColor = textColor,
                         secondaryTextColor = secondaryTextColor,
                         accentColor = accentColor,
-                        isYouTube = true
+                        isYouTube = true,
+                        shape = getSegmentedShape(index, songs.size)
                     )
+                    if (index < songs.size - 1) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 24.dp),
+                            color = textColor.copy(alpha = 0.08f)
+                        )
+                    }
                 }
                 
                 if (songs.isEmpty() && !isLoading) {
@@ -804,7 +922,8 @@ fun PlaylistDetailScreen(
 fun LibraryContent(
     songs: List<Song>,
     onSongClick: (Song) -> Unit,
-    onPlayQueue: (List<Song>) -> Unit,
+    onPlaylistClick: (com.ivor.ivormusic.data.PlaylistDisplayItem) -> Unit = {},
+    onPlayQueue: (List<Song>, Song?) -> Unit,
     contentPadding: PaddingValues,
     viewModel: HomeViewModel,
     isDarkMode: Boolean
@@ -816,6 +935,7 @@ fun LibraryContent(
             LibraryScreen(
                 songs = songs,
                 onSongClick = onSongClick,
+                onPlayQueue = onPlayQueue,
                 onPlaylistClick = { viewedPlaylist = it },
                 contentPadding = contentPadding,
                 viewModel = viewModel,
@@ -825,10 +945,7 @@ fun LibraryContent(
             PlaylistDetailScreen(
                 playlist = playlist,
                 onBack = { viewedPlaylist = null },
-                onSongClick = onSongClick,
-                onPlayAll = { playlistSongs ->
-                    onPlayQueue(playlistSongs) 
-                },
+                onPlayQueue = onPlayQueue,
                 viewModel = viewModel,
                 isDarkMode = isDarkMode
             )

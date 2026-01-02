@@ -107,6 +107,7 @@ import kotlinx.coroutines.launch
 
 
 import androidx.compose.animation.ExperimentalAnimationApi
+import com.ivor.ivormusic.R
 
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
 @Composable
@@ -214,10 +215,14 @@ fun HomeScreen(
                         } else {
                             YourMixContent(
                                 songs = songs,
-                                onSongClick = onSongClick,
+                                onSongClick = { song ->
+                                    playerViewModel.playQueue(songs, song)
+                                    showPlayerSheet = true
+                                },
                                 onPlayClick = {
                                     if (songs.isNotEmpty()) {
-                                        onSongClick(songs[0])
+                                        playerViewModel.playQueue(songs)
+                                        showPlayerSheet = true
                                     }
                                 },
                                 onProfileClick = { showAuthDialog = true },
@@ -230,16 +235,25 @@ fun HomeScreen(
                     }
                     1 -> SearchContent(
                         songs = songs,
-                        onSongClick = onSongClick,
+                        onSongClick = { song ->
+                            playerViewModel.playQueue(listOf(song))
+                            showPlayerSheet = true
+                        },
                         contentPadding = PaddingValues(bottom = 160.dp),
                         viewModel = viewModel,
                         isDarkMode = isDarkMode
                     )
                     2 -> LibraryContent(
                         songs = songs,
-                        onSongClick = onSongClick,
-                        onPlayQueue = { queue ->
-                            playerViewModel.playQueue(queue)
+                        onSongClick = { song: Song ->
+                            playerViewModel.playQueue(listOf(song))
+                            showPlayerSheet = true
+                        },
+                        onPlaylistClick = { playlist: com.ivor.ivormusic.data.PlaylistDisplayItem ->
+                            // Optional: navigate to playlist detail or handled by parent
+                        },
+                        onPlayQueue = { songs: List<Song>, selectedSong: Song? ->
+                            playerViewModel.playQueue(songs, selectedSong)
                             showPlayerSheet = true
                         },
                         contentPadding = PaddingValues(bottom = 160.dp),
@@ -322,10 +336,10 @@ fun HomeScreen(
             contentColor = Color.White,
             dragHandle = {
                 BottomSheetDefaults.DragHandle(
-                    color = Color.White.copy(alpha = 0.4f)
+                    color = Color.Black
                 )
             },
-            scrimColor = Color.Black.copy(alpha = 0.5f)
+            scrimColor = Color.Black.copy(alpha = 0.6f)
         ) {
             PlayerSheetContent(
                 viewModel = playerViewModel,
@@ -794,13 +808,12 @@ fun QuickPicksSection(
             contentPadding = PaddingValues(horizontal = 20.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .height(180.dp)
+                .height(210.dp)
         ) { index ->
             val song = songs[index]
             Column(
                  modifier = Modifier
                     .width(140.dp)
-                    .maskClip(MaterialTheme.shapes.medium)
                     .clickable { onSongClick(song) }
             ) {
                 // Song Image
@@ -854,7 +867,8 @@ fun QuickPicksSection(
 fun LibraryContent(
     songs: List<Song>,
     onSongClick: (Song) -> Unit,
-    onPlayQueue: (List<Song>) -> Unit, // New param
+    onPlaylistClick: (com.ivor.ivormusic.data.PlaylistDisplayItem) -> Unit = {},
+    onPlayQueue: (List<Song>, Song?) -> Unit,
     contentPadding: PaddingValues,
     viewModel: HomeViewModel,
     isDarkMode: Boolean
@@ -871,6 +885,7 @@ fun LibraryContent(
             com.ivor.ivormusic.ui.library.LibraryScreen(
                 songs = songs,
                 onSongClick = onSongClick,
+                onPlayQueue = onPlayQueue,
                 onPlaylistClick = { viewedPlaylist = it },
                 contentPadding = contentPadding,
                 viewModel = viewModel,
@@ -880,10 +895,7 @@ fun LibraryContent(
             com.ivor.ivormusic.ui.library.PlaylistDetailScreen(
                 playlist = playlist,
                 onBack = { viewedPlaylist = null },
-                onSongClick = onSongClick,
-                onPlayAll = { playlistSongs ->
-                    onPlayQueue(playlistSongs) 
-                },
+                onPlayQueue = onPlayQueue,
                 viewModel = viewModel,
                 isDarkMode = isDarkMode
             )

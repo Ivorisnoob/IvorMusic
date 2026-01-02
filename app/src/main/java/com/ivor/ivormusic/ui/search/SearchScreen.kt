@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
@@ -34,8 +35,11 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -54,6 +58,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -64,6 +70,19 @@ import com.ivor.ivormusic.data.Song
 import com.ivor.ivormusic.ui.home.HomeViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+/**
+ * Segmented list shape helper for Expressive design
+ */
+@Composable
+private fun getSegmentedShape(index: Int, count: Int, cornerSize: androidx.compose.ui.unit.Dp = 28.dp): Shape {
+    return when {
+        count == 1 -> RoundedCornerShape(cornerSize)
+        index == 0 -> RoundedCornerShape(topStart = cornerSize, topEnd = cornerSize)
+        index == count - 1 -> RoundedCornerShape(bottomStart = cornerSize, bottomEnd = cornerSize)
+        else -> RectangleShape
+    }
+}
 
 /**
  * Search Screen with Material 3 Expressive design
@@ -278,8 +297,7 @@ fun SearchScreen(
                     // Browse section when no search
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = bottomPadding),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = bottomPadding)
                     ) {
                         item {
                             Text(
@@ -290,15 +308,23 @@ fun SearchScreen(
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                         }
-                        items(songs.take(20)) { song ->
+                        val displaySongs = songs.take(20)
+                        itemsIndexed(displaySongs) { index, song ->
                             SongCard(
                                 song = song,
                                 onClick = { onSongClick(song) },
                                 cardColor = cardColor,
                                 textColor = textColor,
                                 secondaryTextColor = secondaryTextColor,
-                                accentColor = accentColor
+                                accentColor = accentColor,
+                                shape = getSegmentedShape(index, displaySongs.size)
                             )
+                            if (index < displaySongs.size - 1) {
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(horizontal = 24.dp),
+                                    color = textColor.copy(alpha = 0.08f)
+                                )
+                            }
                         }
                     }
                 }
@@ -306,8 +332,7 @@ fun SearchScreen(
                     // YouTube Search Results
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = bottomPadding),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = bottomPadding)
                     ) {
                         item {
                             Row(
@@ -329,7 +354,7 @@ fun SearchScreen(
                                 )
                             }
                         }
-                        items(youtubeResults) { song ->
+                        itemsIndexed(youtubeResults) { index, song ->
                             SongCard(
                                 song = song,
                                 onClick = { onSongClick(song) },
@@ -337,8 +362,15 @@ fun SearchScreen(
                                 textColor = textColor,
                                 secondaryTextColor = secondaryTextColor,
                                 accentColor = accentColor,
-                                isYouTube = true
+                                isYouTube = true,
+                                shape = getSegmentedShape(index, youtubeResults.size)
                             )
+                            if (index < youtubeResults.size - 1) {
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(horizontal = 24.dp),
+                                    color = textColor.copy(alpha = 0.08f)
+                                )
+                            }
                         }
                         
                         if (filteredLocalSongs.isNotEmpty()) {
@@ -351,15 +383,23 @@ fun SearchScreen(
                                     color = textColor
                                 )
                             }
-                            items(filteredLocalSongs.take(10)) { song ->
+                            val localResults = filteredLocalSongs.take(10)
+                            itemsIndexed(localResults) { index, song ->
                                 SongCard(
                                     song = song,
                                     onClick = { onSongClick(song) },
                                     cardColor = cardColor,
                                     textColor = textColor,
                                     secondaryTextColor = secondaryTextColor,
-                                    accentColor = accentColor
+                                    accentColor = accentColor,
+                                    shape = getSegmentedShape(index, localResults.size)
                                 )
+                                if (index < localResults.size - 1) {
+                                    HorizontalDivider(
+                                        modifier = Modifier.padding(horizontal = 24.dp),
+                                        color = textColor.copy(alpha = 0.08f)
+                                    )
+                                }
                             }
                         }
                     }
@@ -397,8 +437,7 @@ fun SearchScreen(
                     // Local search results only
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = bottomPadding),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = bottomPadding)
                     ) {
                         item {
                             Text(
@@ -408,15 +447,22 @@ fun SearchScreen(
                                 modifier = Modifier.padding(bottom = 8.dp)
                             )
                         }
-                        items(filteredLocalSongs) { song ->
+                        itemsIndexed(filteredLocalSongs) { index, song ->
                             SongCard(
                                 song = song,
                                 onClick = { onSongClick(song) },
                                 cardColor = cardColor,
                                 textColor = textColor,
                                 secondaryTextColor = secondaryTextColor,
-                                accentColor = accentColor
+                                accentColor = accentColor,
+                                shape = getSegmentedShape(index, filteredLocalSongs.size)
                             )
+                            if (index < filteredLocalSongs.size - 1) {
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(horizontal = 24.dp),
+                                    color = textColor.copy(alpha = 0.08f)
+                                )
+                            }
                         }
                     }
                 }
@@ -433,102 +479,85 @@ private fun SongCard(
     textColor: Color,
     secondaryTextColor: Color,
     accentColor: Color,
-    isYouTube: Boolean = false
+    isYouTube: Boolean = false,
+    shape: Shape = RoundedCornerShape(20.dp)
 ) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
+            .clip(shape)
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(20.dp),
+        shape = shape,
         color = cardColor,
-        tonalElevation = 2.dp,
-        shadowElevation = 4.dp
+        tonalElevation = 1.dp
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Album Art with rounded corners
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(RoundedCornerShape(14.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                if (song.albumArtUri != null || song.thumbnailUrl != null) {
-                    AsyncImage(
-                        model = song.albumArtUri ?: song.thumbnailUrl,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                if (isYouTube) Color(0xFFFF0000).copy(alpha = 0.2f) 
-                                else accentColor.copy(alpha = 0.2f)
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Rounded.MusicNote,
-                            contentDescription = null,
-                            tint = if (isYouTube) Color(0xFFFF0000) else accentColor,
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
-                }
-            }
-            
-            // Song info
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 14.dp)
-            ) {
+        ListItem(
+            headlineContent = {
                 Text(
-                    text = song.title.takeIf { !it.isNullOrBlank() && !it.startsWith("Unknown") } ?: "Untitled Song",
+                    text = song.title.takeIf { !it.isNullOrBlank() && !it.startsWith("Unknown", ignoreCase = true) } ?: "Untitled Song",
                     color = textColor,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(2.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (isYouTube) {
-                        /* removed YT badge */
+            },
+            supportingContent = {
+                Text(
+                    text = song.artist.takeIf { !it.isNullOrBlank() && !it.startsWith("Unknown", ignoreCase = true) } ?: "Unknown Artist",
+                    color = secondaryTextColor,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            },
+            leadingContent = {
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(RoundedCornerShape(14.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (song.albumArtUri != null || song.thumbnailUrl != null) {
+                        AsyncImage(
+                            model = song.highResThumbnailUrl ?: song.albumArtUri ?: song.thumbnailUrl,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    if (isYouTube) Color(0xFFFF0000).copy(alpha = 0.2f)
+                                    else accentColor.copy(alpha = 0.2f)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Rounded.MusicNote,
+                                contentDescription = null,
+                                tint = if (isYouTube) Color(0xFFFF0000) else accentColor,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
                     }
-                    Text(
-                        text = song.artist.takeIf { !it.isNullOrBlank() && !it.startsWith("Unknown") } ?: "Unknown Artist",
-                        color = secondaryTextColor,
-                        style = MaterialTheme.typography.bodyMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
                 }
-            }
-            
-            // Play button
-            Surface(
-                modifier = Modifier.size(44.dp),
-                shape = RoundedCornerShape(14.dp),
-                color = accentColor.copy(alpha = 0.15f)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        Icons.Rounded.PlayArrow,
-                        contentDescription = "Play",
-                        tint = accentColor,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            }
-        }
+            },
+            trailingContent = {
+                Icon(
+                    Icons.Rounded.PlayArrow,
+                    contentDescription = "Play",
+                    tint = accentColor,
+                    modifier = Modifier.size(24.dp)
+                )
+            },
+            colors = ListItemDefaults.colors(
+                containerColor = Color.Transparent,
+                headlineColor = textColor,
+                supportingColor = secondaryTextColor
+            )
+        )
     }
 }

@@ -39,7 +39,14 @@ class PlayerViewModel(private val context: Context) : ViewModel() {
     private val _isBuffering = MutableStateFlow(false)
     val isBuffering: StateFlow<Boolean> = _isBuffering.asStateFlow()
 
-    private var currentQueue: List<Song> = emptyList()
+    private val _shuffleModeEnabled = MutableStateFlow(false)
+    val shuffleModeEnabled: StateFlow<Boolean> = _shuffleModeEnabled.asStateFlow()
+
+    private val _repeatMode = MutableStateFlow(Player.REPEAT_MODE_OFF)
+    val repeatMode: StateFlow<Int> = _repeatMode.asStateFlow()
+
+    private val _currentQueue = MutableStateFlow<List<Song>>(emptyList())
+    val currentQueue: StateFlow<List<Song>> = _currentQueue.asStateFlow()
 
     init {
         initializeController()
@@ -63,11 +70,19 @@ class PlayerViewModel(private val context: Context) : ViewModel() {
                     }
                 }
 
+                override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+                    _shuffleModeEnabled.value = shuffleModeEnabled
+                }
+
+                override fun onRepeatModeChanged(repeatMode: Int) {
+                    _repeatMode.value = repeatMode
+                }
+
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                     controller?.let {
                         val index = it.currentMediaItemIndex
-                        if (index in currentQueue.indices) {
-                            _currentSong.value = currentQueue[index]
+                        if (index in _currentQueue.value.indices) {
+                            _currentSong.value = _currentQueue.value[index]
                         }
                     }
                 }
@@ -92,33 +107,53 @@ class PlayerViewModel(private val context: Context) : ViewModel() {
         playQueue(listOf(song))
     }
 
-    fun playQueue(songs: List<Song>) {
+    fun playQueue(songs: List<Song>, startSong: Song? = null) {
         if (songs.isEmpty()) return
         
-        currentQueue = songs
-        // Update current song to the first one immediately for UI responsiveness
-        _currentSong.value = songs.first()
+        _currentQueue.value = songs
+        val startIndex = (if (startSong != null) songs.indexOfFirst { it.id == startSong.id } else 0).coerceAtLeast(0)
         
-        controller?.let {
-            val mediaItems = songs.map { song ->
-                if (song.source == com.ivor.ivormusic.data.SongSource.LOCAL && song.uri != null) {
-                    MediaItem.fromUri(song.uri)
-                } else {
-                    MediaItem.Builder()
-                        .setMediaId(song.id) // This ID is used by Service to fetch stream
-                         .setMediaMetadata(
-                            androidx.media3.common.MediaMetadata.Builder()
-                                .setTitle(song.title)
-                                .setArtist(song.artist)
-                                .setArtworkUri(android.net.Uri.parse(song.highResThumbnailUrl ?: song.thumbnailUrl ?: ""))
-                                .build()
-                        )
-                        .build()
+        // Update current song immediately for UI responsiveness
+        val currentSong = songs[startIndex]
+        _currentSong.value = currentSong
+        
+        controller?.let { player ->
+            // 1. Play the target song immediately to be responsive
+            val startItem = createMediaItem(currentSong)
+            player.setMediaItem(startItem)
+            player.prepare()
+            player.play()
+            
+            // 2. Add the rest of the queue in the background
+            viewModelScope.launch {
+                val otherItemsBefore = songs.subList(0, startIndex).map { createMediaItem(it) }
+                val otherItemsAfter = songs.subList(startIndex + 1, songs.size).map { createMediaItem(it) }
+                
+                if (otherItemsBefore.isNotEmpty()) {
+                    player.addMediaItems(0, otherItemsBefore)
+                }
+                if (otherItemsAfter.isNotEmpty()) {
+                    // Start item is now at index otherItemsBefore.size
+                    player.addMediaItems(otherItemsBefore.size + 1, otherItemsAfter)
                 }
             }
-            it.setMediaItems(mediaItems)
-            it.prepare()
-            it.play()
+        }
+    }
+
+    private fun createMediaItem(song: Song): MediaItem {
+        return if (song.source == com.ivor.ivormusic.data.SongSource.LOCAL && song.uri != null) {
+            MediaItem.fromUri(song.uri)
+        } else {
+            MediaItem.Builder()
+                .setMediaId(song.id)
+                .setMediaMetadata(
+                    androidx.media3.common.MediaMetadata.Builder()
+                        .setTitle(song.title)
+                        .setArtist(song.artist)
+                        .setArtworkUri(android.net.Uri.parse(song.highResThumbnailUrl ?: song.thumbnailUrl ?: ""))
+                        .build()
+                )
+                .build()
         }
     }
 
@@ -129,6 +164,24 @@ class PlayerViewModel(private val context: Context) : ViewModel() {
             } else {
                 it.play()
             }
+        }
+    }
+
+    fun toggleShuffle() {
+        controller?.let {
+            it.shuffleModeEnabled = !it.shuffleModeEnabled
+        }
+    }
+
+    fun toggleRepeat() {
+        controller?.let {
+            val nextMode = when (it.repeatMode) {
+                Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
+                Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
+                Player.REPEAT_MODE_ONE -> Player.REPEAT_MODE_OFF
+                else -> Player.REPEAT_MODE_OFF
+            }
+            it.repeatMode = nextMode
         }
     }
 
