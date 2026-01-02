@@ -63,6 +63,7 @@ fun MiniPlayer(
     currentSong: Song?,
     isPlaying: Boolean,
     isBuffering: Boolean,
+    playWhenReady: Boolean,
     progress: Float,
     onPlayPauseClick: () -> Unit,
     onNextClick: () -> Unit,
@@ -203,7 +204,7 @@ fun MiniPlayer(
                 }
 
                 // Play/Pause Button with shape morphing or Loading
-                if (isBuffering && !isPlaying) {
+                if (isBuffering && playWhenReady) {
                     Box(
                         modifier = Modifier.size(44.dp),
                         contentAlignment = Alignment.Center

@@ -130,6 +130,7 @@ fun HomeScreen(
     val currentSong by playerViewModel.currentSong.collectAsState()
     val isPlaying by playerViewModel.isPlaying.collectAsState()
     val isBuffering by playerViewModel.isBuffering.collectAsState()
+    val playWhenReady by playerViewModel.playWhenReady.collectAsState()
     val progress by playerViewModel.progress.collectAsState()
     val duration by playerViewModel.duration.collectAsState()
     
@@ -298,6 +299,7 @@ fun HomeScreen(
             currentSong = currentSong,
             isPlaying = isPlaying,
             isBuffering = isBuffering,
+            playWhenReady = playWhenReady,
             progress = progressFraction,
             onPlayPauseClick = { playerViewModel.togglePlayPause() },
             onNextClick = { playerViewModel.skipToNext() },
@@ -569,8 +571,8 @@ fun OrganicSongLayout(
         val boxHeight = maxHeight
         
         // Circle sizes - percentage of screen width
-        val circle1Size = boxWidth * 0.28f  // Top-left circle
-        val circle2Size = boxWidth * 0.24f  // Bottom-right circle
+        val circle1Size = boxWidth * 0.29f  // Top-left circle
+        val circle2Size = boxWidth * 0.26f  // Bottom-right circle
         
         // Main: Large Pill shape - rotated diagonally right-to-left
         if (songs.isNotEmpty()) {
@@ -641,7 +643,7 @@ fun OrganicSongLayout(
                 modifier = Modifier
                     .size(circle2Size)
                     .align(Alignment.BottomEnd)
-                    .offset(x = boxWidth * (-0.05f), y = boxHeight * (-0.06f))
+                    .offset(x = boxWidth * (-0.05f), y = boxHeight * (0.0f))
                     .graphicsLayer { rotationZ = 5f }
                     .clip(CircleShape)
                     .background(Color(0xFF3A3A3A))

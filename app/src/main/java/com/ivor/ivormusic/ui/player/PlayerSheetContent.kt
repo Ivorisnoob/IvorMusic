@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -53,6 +54,7 @@ fun PlayerSheetContent(
     val shuffleModeEnabled by viewModel.shuffleModeEnabled.collectAsState()
     val repeatMode by viewModel.repeatMode.collectAsState()
     val currentQueue by viewModel.currentQueue.collectAsState()
+    val playWhenReady by viewModel.playWhenReady.collectAsState()
     
     var isFavorite by remember { mutableStateOf(false) }
     var showQueue by remember { mutableStateOf(false) }
@@ -101,7 +103,7 @@ fun PlayerSheetContent(
                 
                 IconButton(onClick = { showQueue = !showQueue }) {
                     Icon(
-                        imageVector = if (showQueue) Icons.Rounded.MusicNote else Icons.Default.QueueMusic,
+                        imageVector = if (showQueue) Icons.Rounded.MusicNote else Icons.AutoMirrored.Filled.QueueMusic,
                         contentDescription = "Toggle Queue",
                         tint = if (showQueue) primaryColor else onSurfaceColor,
                         modifier = Modifier.size(28.dp)
@@ -124,6 +126,7 @@ fun PlayerSheetContent(
                         currentSong = currentSong,
                         isPlaying = isPlaying,
                         isBuffering = isBuffering,
+                        playWhenReady = playWhenReady,
                         progress = progress,
                         duration = duration,
                         shuffleModeEnabled = shuffleModeEnabled,
@@ -148,6 +151,7 @@ private fun PlayerView(
     currentSong: Song?,
     isPlaying: Boolean,
     isBuffering: Boolean,
+    playWhenReady: Boolean,
     progress: Long,
     duration: Long,
     shuffleModeEnabled: Boolean,
@@ -331,14 +335,14 @@ private fun PlayerView(
                 )
             ) {
                 // Play/Pause Button with shape morphing or Loading
-                if (isBuffering && !isPlaying) {
+                if (isBuffering && playWhenReady) {
                     Box(
                         modifier = Modifier.size(44.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         LoadingIndicator(
                             modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.onPrimary
                         )
                     }
                 } else {  

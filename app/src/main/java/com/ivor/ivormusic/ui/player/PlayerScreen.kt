@@ -78,6 +78,7 @@ fun PlayerScreen(
     val currentSong by viewModel.currentSong.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
     val isBuffering by viewModel.isBuffering.collectAsState()
+    val playWhenReady by viewModel.playWhenReady.collectAsState()
     val progress by viewModel.progress.collectAsState()
     val duration by viewModel.duration.collectAsState()
     
@@ -299,7 +300,7 @@ fun PlayerScreen(
                         contentColor = MaterialTheme.colorScheme.onPrimary
                     )
                 ) {
-                    if (isBuffering) {
+                    if (isBuffering && playWhenReady) {
                         LoadingIndicator(
                             modifier = Modifier.size(44.dp),
                             color = MaterialTheme.colorScheme.onPrimary 
