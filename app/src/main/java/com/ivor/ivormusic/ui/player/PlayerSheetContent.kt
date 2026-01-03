@@ -44,7 +44,8 @@ import com.ivor.ivormusic.ui.theme.IvorMusicTheme
 @Composable
 fun PlayerSheetContent(
     viewModel: PlayerViewModel,
-    onCollapse: () -> Unit
+    onCollapse: () -> Unit,
+    onLoadMore: () -> Unit = {}
 ) {
     val currentSong by viewModel.currentSong.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
@@ -117,6 +118,7 @@ fun PlayerSheetContent(
                         queue = currentQueue,
                         currentSong = currentSong,
                         onSongClick = { song -> viewModel.playQueue(currentQueue, song) },
+                        onLoadMore = onLoadMore,
                         onSurfaceColor = onSurfaceColor,
                         onSurfaceVariantColor = onSurfaceVariantColor,
                         primaryColor = primaryColor
@@ -412,6 +414,7 @@ private fun QueueView(
     queue: List<Song>,
     currentSong: Song?,
     onSongClick: (Song) -> Unit,
+    onLoadMore: () -> Unit,
     onSurfaceColor: Color,
     onSurfaceVariantColor: Color,
     primaryColor: Color
@@ -430,6 +433,7 @@ private fun QueueView(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(bottom = 32.dp)
             ) {
+                // Queue items
                 itemsIndexed(queue, key = { _, song -> song.id }) { index, song ->
                     val isCurrent = song.id == currentSong?.id
                     
@@ -481,7 +485,7 @@ private fun QueueView(
                                 imageVector = Icons.Rounded.GraphicEq,
                                 contentDescription = "Playing",
                                 tint = primaryColor,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(24.dp)
                             )
                         }
                     }

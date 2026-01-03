@@ -148,6 +148,21 @@ class PlayerViewModel(private val context: Context) : ViewModel() {
         }
     }
 
+    fun addToQueue(songs: List<Song>) {
+        if (songs.isEmpty()) return
+        
+        val currentList = _currentQueue.value.toMutableList()
+        currentList.addAll(songs)
+        _currentQueue.value = currentList
+        
+        controller?.let { player ->
+            viewModelScope.launch {
+                val newItems = songs.map { createMediaItem(it) }
+                player.addMediaItems(newItems)
+            }
+        }
+    }
+
     private fun createMediaItem(song: Song): MediaItem {
         return if (song.source == com.ivor.ivormusic.data.SongSource.LOCAL && song.uri != null) {
             MediaItem.fromUri(song.uri)

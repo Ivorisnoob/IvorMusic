@@ -219,6 +219,11 @@ class YouTubeRepository(private val context: Context) {
     }
     
     suspend fun getPlaylist(playlistId: String): List<Song> = withContext(Dispatchers.IO) {
+        // Fix for "Your Likes" playlist not loading: redirect to the working getLikedMusic() method
+        if (playlistId == "LM" || playlistId == "VLLM") {
+            return@withContext getLikedMusic()
+        }
+
         val newPipeSongs = try {
              val urlId = if (playlistId.startsWith("VL")) playlistId.removePrefix("VL") else playlistId
              val playlistUrl = "https://www.youtube.com/playlist?list=$urlId"

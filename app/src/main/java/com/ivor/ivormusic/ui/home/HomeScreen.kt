@@ -350,6 +350,18 @@ fun HomeScreen(
                         sheetState.hide()
                         showPlayerSheet = false
                     }
+                },
+                onLoadMore = {
+                    val current = playerViewModel.currentSong.value
+                    if (current != null) {
+                        scope.launch {
+                            // Simple "radio" logic: search for similar songs
+                            val query = "${current.title} ${current.artist}"
+                            val similarSongs = viewModel.searchYouTube(query)
+                            val newSongs = similarSongs.filter { it.id != current.id }
+                            playerViewModel.addToQueue(newSongs)
+                        }
+                    }
                 }
             )
         }
