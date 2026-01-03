@@ -1,5 +1,6 @@
 package com.ivor.ivormusic.ui.player
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -53,6 +54,11 @@ fun PlayerSheetContent(
     onCollapse: () -> Unit,
     onLoadMore: () -> Unit = {}
 ) {
+    // Handle back press to collapse player instead of quitting app
+    BackHandler(enabled = true) {
+        onCollapse()
+    }
+    
     val currentSong by viewModel.currentSong.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
     val isBuffering by viewModel.isBuffering.collectAsState()
@@ -159,114 +165,144 @@ private fun ExpressiveNowPlayingView(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // ========== 1. FULL-BLEED ALBUM ART (75% Height) ==========
+        // ========== 1. TOP BAR ==========
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 48.dp)
+                .align(Alignment.TopCenter),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Collapse button with shape morphing
+            FilledIconButton(
+                onClick = onCollapse,
+                shapes = IconButtonDefaults.shapes(),
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    contentColor = MaterialTheme.colorScheme.onSurface
+                ),
+                modifier = Modifier.size(48.dp)
+            ) {
+                Icon(Icons.Default.KeyboardArrowDown, "Collapse", modifier = Modifier.size(28.dp))
+            }
+            
+            // Playing source pill
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.QueueMusic, 
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Now Playing",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+            
+            // Queue button with shape morphing
+            FilledIconButton(
+                onClick = onShowQueue,
+                shapes = IconButtonDefaults.shapes(),
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    contentColor = MaterialTheme.colorScheme.onSurface
+                ),
+                modifier = Modifier.size(48.dp)
+            ) {
+                Icon(Icons.AutoMirrored.Filled.QueueMusic, "Queue", modifier = Modifier.size(24.dp))
+            }
+        }
+        
+        // ========== 2. CONTAINED ALBUM ART WITH CREATIVE SHAPE ==========
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.70f)
-                .align(Alignment.TopCenter)
+                .padding(top = 120.dp)
+                .padding(horizontal = 24.dp),
+            contentAlignment = Alignment.TopCenter
         ) {
-            // Album Art
-            if (currentSong?.albumArtUri != null || currentSong?.thumbnailUrl != null) {
-                AsyncImage(
-                    model = currentSong?.highResThumbnailUrl ?: currentSong?.thumbnailUrl ?: currentSong?.albumArtUri,
-                    contentDescription = "Album Art",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                // Placeholder with expressive shape
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.MusicNote,
-                        contentDescription = null,
-                        modifier = Modifier.size(180.dp),
-                        tint = onSurfaceVariantColor.copy(alpha = 0.2f)
-                    )
-                }
-            }
-            
-            // Top Controls Overlay
-            Row(
+            // Outer glow/shadow layer
+            Surface(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 48.dp)
-                    .align(Alignment.TopCenter),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .size(320.dp)
+                    .offset(y = 8.dp),
+                shape = RoundedCornerShape(48.dp),
+                color = primaryContainerColor.copy(alpha = 0.3f),
+                shadowElevation = 24.dp
+            ) {}
+            
+            // Main album art container with expressive squircle shape
+            Surface(
+                modifier = Modifier.size(320.dp),
+                shape = RoundedCornerShape(48.dp), // Large organic squircle corners
+                shadowElevation = 16.dp,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh
             ) {
-                // Collapse button with shape morphing
-                FilledIconButton(
-                    onClick = onCollapse,
-                    shapes = IconButtonDefaults.shapes(),
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = Color.Black.copy(alpha = 0.3f),
-                        contentColor = Color.White
-                    ),
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Icon(Icons.Default.KeyboardArrowDown, "Collapse", modifier = Modifier.size(28.dp))
-                }
-                
-                // Playing source pill
-                Surface(
-                    shape = RoundedCornerShape(24.dp),
-                    color = Color.Black.copy(alpha = 0.3f)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.QueueMusic, 
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(18.dp)
+                Box(modifier = Modifier.fillMaxSize()) {
+                    // Album Art
+                    if (currentSong?.albumArtUri != null || currentSong?.thumbnailUrl != null) {
+                        AsyncImage(
+                            model = currentSong?.highResThumbnailUrl ?: currentSong?.thumbnailUrl ?: currentSong?.albumArtUri,
+                            contentDescription = "Album Art",
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(48.dp)),
+                            contentScale = ContentScale.Crop
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Now Playing",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = Color.White
-                        )
+                    } else {
+                        // Placeholder with expressive shape
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.verticalGradient(
+                                        colors = listOf(
+                                            primaryContainerColor.copy(alpha = 0.5f),
+                                            MaterialTheme.colorScheme.surfaceContainerHigh
+                                        )
+                                    )
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.MusicNote,
+                                contentDescription = null,
+                                modifier = Modifier.size(120.dp),
+                                tint = onSurfaceVariantColor.copy(alpha = 0.3f)
+                            )
+                        }
                     }
-                }
-                
-                // Queue button with shape morphing
-                FilledIconButton(
-                    onClick = onShowQueue,
-                    shapes = IconButtonDefaults.shapes(),
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = Color.Black.copy(alpha = 0.3f),
-                        contentColor = Color.White
-                    ),
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.QueueMusic, "Queue", modifier = Modifier.size(24.dp))
+                    
+                    // Subtle inner gradient for depth
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(48.dp))
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.Transparent,
+                                        Color.Black.copy(alpha = 0.1f)
+                                    ),
+                                    startY = 0f,
+                                    endY = Float.POSITIVE_INFINITY
+                                )
+                            )
+                    )
                 }
             }
-            
-            // Gradient Blend at Bottom
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(150.dp)
-                    .align(Alignment.BottomCenter)
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                MaterialTheme.colorScheme.background.copy(alpha = 0.8f),
-                                MaterialTheme.colorScheme.background
-                            )
-                        )
-                    )
-            )
         }
 
         // ========== 2. CONTROLS & INFO (Bottom Section) ==========
