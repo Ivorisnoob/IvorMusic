@@ -23,6 +23,7 @@ import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
@@ -75,10 +76,10 @@ fun FloatingPillNavBar(
     )
 
     // Colors based on theme - more transparent for floating effect
-    val containerColor = if (isDarkMode) Color(0xE61A1A1A) else Color(0xE6F5F5F5)
-    val selectedBgColor = if (isDarkMode) Color(0xFF3D5AFE) else Color(0xFF6200EE)
-    val selectedContentColor = Color.White
-    val unselectedContentColor = if (isDarkMode) Color(0xFF9E9E9E) else Color(0xFF757575)
+    val containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.9f)
+    val selectedBgColor = MaterialTheme.colorScheme.secondaryContainer
+    val selectedContentColor = MaterialTheme.colorScheme.onSecondaryContainer
+    val unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
 
     // Floating pill - no fillMaxWidth, just wraps content
     Surface(

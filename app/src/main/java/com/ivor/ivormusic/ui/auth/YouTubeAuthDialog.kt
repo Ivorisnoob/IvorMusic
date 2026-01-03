@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -49,7 +50,7 @@ fun YouTubeAuthDialog(
                 .fillMaxSize()
                 .padding(16.dp),
             shape = RoundedCornerShape(28.dp),
-            color = Color(0xFF1E1E1E),
+            color = MaterialTheme.colorScheme.surfaceContainer,
             tonalElevation = 6.dp
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
@@ -63,13 +64,13 @@ fun YouTubeAuthDialog(
                     Text(
                         text = "Sign in to YouTube Music",
                         modifier = Modifier.weight(1f),
-                        color = Color.White
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     IconButton(onClick = onDismiss) {
                         Icon(
                             imageVector = Icons.Rounded.Close,
                             contentDescription = "Close",
-                            tint = Color.White
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
