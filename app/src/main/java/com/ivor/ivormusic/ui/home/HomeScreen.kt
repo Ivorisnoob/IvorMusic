@@ -180,7 +180,7 @@ fun HomeScreen(
     // Auth Dialog State
     var showAuthDialog by remember { mutableStateOf(false) }
 
-    val backgroundColor = if (isDarkMode) Color.Black else Color(0xFFF8F8F8)
+    val backgroundColor = MaterialTheme.colorScheme.background
     
     // Loading state for playlist fetch
     var isPlaylistLoading by remember { mutableStateOf(false) }
@@ -210,7 +210,7 @@ fun HomeScreen(
                              Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                 LoadingIndicator(
                                     modifier = Modifier.size(48.dp),
-                                    color = if (isDarkMode) Color.White else Color.Black
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             }
                         } else {
@@ -269,7 +269,7 @@ fun HomeScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Permission required to load songs", color = if (isDarkMode) Color.White else Color.Black)
+                    Text("Permission required to load songs", color = MaterialTheme.colorScheme.onBackground)
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(onClick = { permissionState.launchPermissionRequest() }) {
                         Text("Grant Permission")
@@ -334,14 +334,14 @@ fun HomeScreen(
         ModalBottomSheet(
             onDismissRequest = { showPlayerSheet = false },
             sheetState = sheetState,
-            containerColor = Color.Black,
-            contentColor = Color.White,
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface,
             dragHandle = {
                 BottomSheetDefaults.DragHandle(
-                    color = Color.Black
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             },
-            scrimColor = Color.Black.copy(alpha = 0.6f)
+            scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f)
         ) {
             PlayerSheetContent(
                 viewModel = playerViewModel,
@@ -368,8 +368,8 @@ fun YourMixContent(
     contentPadding: PaddingValues,
     viewModel: HomeViewModel
 ) {
-    val backgroundColor = if (isDarkMode) Color.Black else Color(0xFFF8F8F8)
-    val textColor = if (isDarkMode) Color.White else Color.Black
+    val backgroundColor = MaterialTheme.colorScheme.background
+    val textColor = MaterialTheme.colorScheme.onBackground
     
     PullToRefreshBox(
         isRefreshing = viewModel.isLoading.collectAsState().value,
@@ -411,9 +411,9 @@ fun TopBarSection(
     isDarkMode: Boolean,
     viewModel: HomeViewModel
 ) {
-    val surfaceColor = if (isDarkMode) Color(0xFF2A2A2A) else Color(0xFFE0E0E0)
-    val iconColor = if (isDarkMode) Color.White else Color.Black
-    val containerColor = if (isDarkMode) Color(0xFF1E1E1E) else Color(0xFFF0F0F0)
+    val surfaceColor = MaterialTheme.colorScheme.surfaceContainer
+    val iconColor = MaterialTheme.colorScheme.onSurface
+    val containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
     
     val userAvatar by viewModel.userAvatar.collectAsState()
     
@@ -499,8 +499,8 @@ fun HeroSection(
 ) {
     val firstSong = songs.firstOrNull()
     val secondSong = songs.getOrNull(1)
-    val textColor = if (isDarkMode) Color.White else Color.Black
-    val secondaryTextColor = if (isDarkMode) Color(0xFFB3B3B3) else Color(0xFF666666)
+    val textColor = MaterialTheme.colorScheme.onBackground
+    val secondaryTextColor = MaterialTheme.colorScheme.onSurfaceVariant
     
     Row(
         modifier = Modifier
@@ -543,8 +543,8 @@ fun HeroSection(
                 modifier = Modifier.size(IconButtonDefaults.largeContainerSize()),
                 shapes = IconButtonDefaults.shapes(), // Enables shape morphing on press
                 colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = if (isDarkMode) Color(0xFFB8D4FF) else Color(0xFF6200EE),
-                    contentColor = if (isDarkMode) Color.Black else Color.White
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             ) {
                 Icon(
@@ -584,7 +584,7 @@ fun OrganicSongLayout(
                     .offset(x = 0.dp, y = 30.dp)
                     .graphicsLayer { rotationZ = 30f }
                     .clip(RoundedCornerShape(50))
-                    .background(Color(0xFFE8E8E8))
+                    .background(MaterialTheme.colorScheme.secondaryContainer)
                     .clickable { onSongClick(songs[0]) },
                 contentAlignment = Alignment.Center
             ) {
@@ -600,7 +600,7 @@ fun OrganicSongLayout(
                         imageVector = Icons.Rounded.MusicNote,
                         contentDescription = null,
                         modifier = Modifier.size(48.dp),
-                        tint = Color(0xFF666666)
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                 }
             }
@@ -615,7 +615,7 @@ fun OrganicSongLayout(
                     .offset(x = boxWidth * 0.04f, y = boxHeight * 0.05f)
                     .graphicsLayer { rotationZ = -10f }
                     .clip(CircleShape)
-                    .background(Color(0xFF3A3A3A))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                     .clickable { onSongClick(songs[1]) },
                 contentAlignment = Alignment.Center
             ) {
@@ -631,7 +631,7 @@ fun OrganicSongLayout(
                         imageVector = Icons.Rounded.MusicNote,
                         contentDescription = null,
                         modifier = Modifier.size(24.dp),
-                        tint = Color(0xFF888888)
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -646,7 +646,7 @@ fun OrganicSongLayout(
                     .offset(x = boxWidth * (-0.05f), y = boxHeight * (0.0f))
                     .graphicsLayer { rotationZ = 5f }
                     .clip(CircleShape)
-                    .background(Color(0xFF3A3A3A))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                     .clickable { onSongClick(songs[2]) },
                 contentAlignment = Alignment.Center
             ) {
@@ -662,7 +662,7 @@ fun OrganicSongLayout(
                         imageVector = Icons.Rounded.MusicNote,
                         contentDescription = null,
                         modifier = Modifier.size(24.dp),
-                        tint = Color(0xFF888888)
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -679,7 +679,7 @@ fun SongStripCard(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(Color(0xFF2A2A2A))
+            .background(MaterialTheme.colorScheme.surfaceContainer)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
@@ -694,7 +694,7 @@ fun SongStripCard(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color(0xFF2A2A2A))
+                    .background(MaterialTheme.colorScheme.surfaceContainer)
             )
         }
     }
@@ -727,8 +727,8 @@ fun RecentAlbumsSection(
 ) {
     if (songs.isEmpty()) return
     
-    val textColor = if (isDarkMode) Color.White else Color.Black
-    val cardBgColor = if (isDarkMode) Color(0xFF2A2A2A) else Color(0xFFE8E8E8)
+    val textColor = MaterialTheme.colorScheme.onSurface
+    val cardBgColor = MaterialTheme.colorScheme.surfaceContainerHigh
     
     // We need at least one large, one medium, one small for full effect,
     // but the component handles fewer items gracefully.
@@ -789,9 +789,9 @@ fun QuickPicksSection(
 ) {
     if (songs.isEmpty()) return
     
-    val textColor = if (isDarkMode) Color.White else Color.Black
-    val secondaryTextColor = if (isDarkMode) Color.Gray else Color(0xFF666666)
-    val cardBgColor = if (isDarkMode) Color(0xFF2A2A2A) else Color(0xFFE8E8E8)
+    val textColor = MaterialTheme.colorScheme.onSurface
+    val secondaryTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val cardBgColor = MaterialTheme.colorScheme.surfaceContainerHigh
     
     val state = rememberCarouselState { songs.size }
     

@@ -111,14 +111,14 @@ fun LibraryScreen(
     isDarkMode: Boolean,
     modifier: Modifier = Modifier
 ) {
-    // Theme colors
-    val backgroundColor = if (isDarkMode) Color.Black else Color(0xFFF8F8F8)
-    val surfaceColor = if (isDarkMode) Color(0xFF1A1A1A) else Color.White
-    val cardColor = if (isDarkMode) Color(0xFF1E1E1E) else Color.White
-    val textColor = if (isDarkMode) Color.White else Color.Black
-    val secondaryTextColor = if (isDarkMode) Color(0xFFB3B3B3) else Color(0xFF666666)
-    val accentColor = if (isDarkMode) Color(0xFF3D5AFE) else Color(0xFF6200EE)
-    val chipBgColor = if (isDarkMode) Color(0xFF2A2A2A) else Color(0xFFE8E8E8)
+    // Theme colors from MaterialTheme
+    val backgroundColor = MaterialTheme.colorScheme.background
+    val surfaceColor = MaterialTheme.colorScheme.surface
+    val cardColor = MaterialTheme.colorScheme.surfaceContainer
+    val textColor = MaterialTheme.colorScheme.onBackground
+    val secondaryTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val accentColor = MaterialTheme.colorScheme.primary
+    val chipBgColor = MaterialTheme.colorScheme.surfaceContainerHigh
     
     // YouTube connection status
     val isYouTubeConnected by viewModel.isYouTubeConnected.collectAsState()
@@ -753,10 +753,10 @@ fun PlaylistDetailScreen(
     var songs by remember { mutableStateOf<List<Song>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     
-    val backgroundColor = if (isDarkMode) Color.Black else Color(0xFFF8F8F8)
-    val textColor = if (isDarkMode) Color.White else Color.Black
-    val secondaryTextColor = if (isDarkMode) Color(0xFFB3B3B3) else Color(0xFF666666)
-    val accentColor = if (isDarkMode) Color(0xFF3D5AFE) else Color(0xFF6200EE)
+    val backgroundColor = MaterialTheme.colorScheme.background
+    val textColor = MaterialTheme.colorScheme.onBackground
+    val secondaryTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val accentColor = MaterialTheme.colorScheme.primary
 
     LaunchedEffect(playlist.id) {
         val listId = if (playlist.url?.contains("list=") == true) playlist.url.substringAfter("list=") else playlist.id

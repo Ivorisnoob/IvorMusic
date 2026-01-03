@@ -59,17 +59,17 @@ fun PlayerSheetContent(
     var isFavorite by remember { mutableStateOf(false) }
     var showQueue by remember { mutableStateOf(false) }
 
-    val surfaceColor = Color.Black // Force black background
-    val onSurfaceColor = Color.White
-    val onSurfaceVariantColor = Color.White.copy(alpha = 0.7f)
+    val surfaceColor = MaterialTheme.colorScheme.background
+    val onSurfaceColor = MaterialTheme.colorScheme.onBackground
+    val onSurfaceVariantColor = MaterialTheme.colorScheme.onSurfaceVariant
     val primaryColor = MaterialTheme.colorScheme.primary
-    val secondaryContainerColor = Color(0xFF1A1A1A) // Darker container for black theme
+    val secondaryContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh
     
-    // Total black background as requested
+    // Background using dynamic theme color
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(surfaceColor)
     ) {
         Column(
             modifier = Modifier

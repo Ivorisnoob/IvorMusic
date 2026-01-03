@@ -2,14 +2,18 @@ package com.ivor.ivormusic.ui.theme
 
 import android.app.Activity
 import android.os.Build
+import androidx.annotation.ChecksSdkIntAtLeast
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialExpressiveTheme
+import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
+
+import androidx.compose.material3.expressiveLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
@@ -35,21 +39,6 @@ private val DarkColorScheme = darkColorScheme(
     onSurfaceVariant = TextSecondary
 )
 
-private val LightColorScheme = lightColorScheme(
-    primary = LightPrimary,
-    onPrimary = LightOnPrimary,
-    primaryContainer = LightPrimaryContainer,
-    onPrimaryContainer = LightTextPrimary,
-    secondary = Purple40,
-    secondaryContainer = PurpleGrey40,
-    background = LightBackground,
-    surface = LightSurface,
-    surfaceVariant = LightSurfaceVariant,
-    onBackground = LightTextPrimary,
-    onSurface = LightTextPrimary,
-    onSurfaceVariant = LightTextSecondary
-)
-
 // Expressive shapes with more rounded corners
 private val ExpressiveShapes = Shapes(
     extraSmall = RoundedCornerShape(8.dp),
@@ -63,7 +52,7 @@ private val ExpressiveShapes = Shapes(
 @Composable
 fun IvorMusicTheme(
     darkTheme: Boolean = true, // Default to dark theme for this music app
-    dynamicColor: Boolean = false, // Disable dynamic color to use our custom dark theme
+    dynamicColor: Boolean = true, // Enable dynamic color by default for expressive Material 3
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -72,7 +61,7 @@ fun IvorMusicTheme(
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
         darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+        else -> expressiveLightColorScheme()
     }
     
     val view = LocalView.current
@@ -88,6 +77,7 @@ fun IvorMusicTheme(
 
     MaterialExpressiveTheme(
         colorScheme = colorScheme,
+        motionScheme = MotionScheme.expressive(),
         shapes = ExpressiveShapes,
         typography = Typography,
         content = content

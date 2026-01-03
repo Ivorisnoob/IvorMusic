@@ -28,6 +28,7 @@ import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -69,11 +70,11 @@ fun SettingsScreen(
     // Check actual login status
     var isLoggedIn by remember { mutableStateOf(sessionManager.isLoggedIn()) }
     
-    val backgroundColor = if (isDarkMode) Color.Black else Color(0xFFF8F8F8)
-    val surfaceColor = if (isDarkMode) Color(0xFF1E1E1E) else Color.White
-    val textColor = if (isDarkMode) Color.White else Color.Black
-    val secondaryTextColor = if (isDarkMode) Color(0xFFB3B3B3) else Color(0xFF666666)
-    val accentColor = if (isDarkMode) Color(0xFF3D5AFE) else Color(0xFF6200EE)
+    val backgroundColor = MaterialTheme.colorScheme.background
+    val surfaceColor = MaterialTheme.colorScheme.surfaceContainer
+    val textColor = MaterialTheme.colorScheme.onBackground
+    val secondaryTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val accentColor = MaterialTheme.colorScheme.primary
 
     // Dialog state for YouTube auth
     var showAuthDialog by remember { mutableStateOf(false) }
@@ -142,7 +143,7 @@ fun SettingsScreen(
                                 secondaryTextColor = secondaryTextColor,
                                 iconTint = Color(0xFF4CAF50)
                             )
-                            SettingsDivider(isDarkMode = isDarkMode)
+                            SettingsDivider()
                             SettingsItem(
                                 icon = Icons.AutoMirrored.Rounded.Logout,
                                 title = "Sign Out",
@@ -383,13 +384,13 @@ private fun SettingsItem(
 }
 
 @Composable
-private fun SettingsDivider(isDarkMode: Boolean) {
+private fun SettingsDivider() {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
             .height(1.dp)
-            .background(if (isDarkMode) Color(0xFF2A2A2A) else Color(0xFFEEEEEE))
+            .background(MaterialTheme.colorScheme.outlineVariant)
     )
 }
 
