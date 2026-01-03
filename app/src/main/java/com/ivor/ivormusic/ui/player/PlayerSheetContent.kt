@@ -88,11 +88,15 @@ fun PlayerSheetContent(
     ) {
         Crossfade(targetState = showQueue, label = "PlayerQueueTransition") { isQueueVisible ->
             if (isQueueVisible) {
+                // Determine loading state for the specific "load more" action
+                val isLoadingMore by viewModel.isLoadingMore.collectAsState()
+                
                 ExpressiveQueueView(
                     queue = currentQueue,
                     currentSong = currentSong,
                     onSongClick = { song -> viewModel.playQueue(currentQueue, song) },
                     onLoadMore = onLoadMore,
+                    isLoadingMore = isLoadingMore,
                     onCollapse = onCollapse,
                     onBackToPlayer = { showQueue = false },
                     primaryColor = primaryColor,
@@ -541,6 +545,7 @@ private fun ExpressiveQueueView(
     currentSong: Song?,
     onSongClick: (Song) -> Unit,
     onLoadMore: () -> Unit,
+    isLoadingMore: Boolean,
     onCollapse: () -> Unit,
     onBackToPlayer: () -> Unit,
     primaryColor: Color,
@@ -686,12 +691,23 @@ private fun ExpressiveQueueView(
                     ) {
                         Button(
                             onClick = onLoadMore,
+                            enabled = !isLoadingMore,
                             shapes = ButtonDefaults.shapes(),
                             contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp)
                         ) {
-                            Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null, modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Text("Load More Recommendations", style = MaterialTheme.typography.titleSmall)
+                            if (isLoadingMore) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.onPrimary
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text("Loading...", style = MaterialTheme.typography.titleSmall)
+                            } else {
+                                Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null, modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text("Load More Recommendations", style = MaterialTheme.typography.titleSmall)
+                            }
                         }
                     }
                 }

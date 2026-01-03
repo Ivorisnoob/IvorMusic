@@ -139,7 +139,7 @@ fun ExpandablePlayer(
                             viewModel = viewModel,
                             onCollapse = { onExpandChange(false) },
                             onLoadMore = {
-                                // Load more logic
+                                viewModel.loadMoreRecommendations()
                             }
                         )
                     }

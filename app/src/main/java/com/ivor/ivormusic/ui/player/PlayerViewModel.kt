@@ -60,6 +60,13 @@ class PlayerViewModel(private val context: Context) : ViewModel() {
     
     val likedSongIds: StateFlow<Set<String>> = likedSongsRepository.likedSongIds
 
+    // YouTube Repository for fetching more songs
+    private val youTubeRepository = com.ivor.ivormusic.data.YouTubeRepository(context)
+    
+    // Loading state for "Load More" button
+    private val _isLoadingMore = MutableStateFlow(false)
+    val isLoadingMore: StateFlow<Boolean> = _isLoadingMore.asStateFlow()
+
     init {
         initializeController()
         startProgressUpdates()
@@ -96,12 +103,14 @@ class PlayerViewModel(private val context: Context) : ViewModel() {
                 }
 
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-                    controller?.let {
-                        val index = it.currentMediaItemIndex
-                        if (index in _currentQueue.value.indices) {
-                            _currentSong.value = _currentQueue.value[index]
-                            updateCurrentSongLikedStatus()
-                        }
+                    // Update current song based on Media ID (more robust than index match)
+                    val id = mediaItem?.mediaId
+                    if (id != null) {
+                       val song = _currentQueue.value.find { it.id == id }
+                       if (song != null) {
+                           _currentSong.value = song
+                           updateCurrentSongLikedStatus()
+                       }
                     }
                 }
             })
@@ -158,6 +167,33 @@ class PlayerViewModel(private val context: Context) : ViewModel() {
             }
         }
     }
+    
+    /**
+     * Load more recommendations from YouTube Music and add to queue.
+     */
+    fun loadMoreRecommendations() {
+        if (_isLoadingMore.value) return
+        
+        viewModelScope.launch {
+            _isLoadingMore.value = true
+            try {
+                // Fetch recommendations - simpler implementation for now:
+                // If we have a current song, search for related content, otherwise generic
+                val seed = _currentSong.value?.title ?: "Popular Music"
+                val newSongs = youTubeRepository.search("Songs related to $seed", com.ivor.ivormusic.data.YouTubeRepository.FILTER_SONGS)
+                    .filter { newSong -> _currentQueue.value.none { it.id == newSong.id } } // Filter duplicates
+                    .take(10)
+                
+                if (newSongs.isNotEmpty()) {
+                    addToQueue(newSongs)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                _isLoadingMore.value = false
+            }
+        }
+    }
 
     fun addToQueue(songs: List<Song>) {
         if (songs.isEmpty()) return
@@ -179,15 +215,15 @@ class PlayerViewModel(private val context: Context) : ViewModel() {
             MediaItem.fromUri(song.uri)
         } else {
             MediaItem.Builder()
-                .setMediaId(song.id)
-                .setMediaMetadata(
-                    androidx.media3.common.MediaMetadata.Builder()
-                        .setTitle(song.title)
-                        .setArtist(song.artist)
-                        .setArtworkUri(android.net.Uri.parse(song.highResThumbnailUrl ?: song.thumbnailUrl ?: ""))
-                        .build()
-                )
-                .build()
+            .setMediaId(song.id)
+            .setMediaMetadata(
+                androidx.media3.common.MediaMetadata.Builder()
+                    .setTitle(song.title)
+                    .setArtist(song.artist)
+                    .setArtworkUri(android.net.Uri.parse(song.highResThumbnailUrl ?: song.thumbnailUrl ?: ""))
+                    .build()
+            )
+            .build()
         }
     }
 
