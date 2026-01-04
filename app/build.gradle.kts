@@ -10,7 +10,7 @@ android {
 
     defaultConfig {
         applicationId = "com.ivor.ivormusic"
-        minSdk = 33
+        minSdk = 31
         targetSdk = 36
         versionCode = 3
         versionName = "1.2"
@@ -22,7 +22,7 @@ android {
         abi {
             isEnable = true
             reset()
-            include("arm64-v8a")
+            include("armeabi-v7a", "arm64-v8a")
             isUniversalApk = false
         }
     }

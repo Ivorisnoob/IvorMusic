@@ -173,6 +173,117 @@ fun SettingsScreen(
                     }
                 }
             }
+            
+            // Spotify Section
+            item {
+                val spotifySessionManager = remember { com.ivor.ivormusic.data.SpotifySessionManager(context) }
+                var isSpotifyEnabled by remember { mutableStateOf(spotifySessionManager.isEnabled()) }
+                var isSpotifyLoggedIn by remember { mutableStateOf(spotifySessionManager.isLoggedIn()) }
+                var showSpotifyAuthDialog by remember { mutableStateOf(false) }
+
+                SettingsSection(title = "Spotify", textColor = secondaryTextColor) {
+                    SettingsCard(surfaceColor = surfaceColor) {
+                        // Enable Toggle
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                             Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF1DB954).copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.MusicNote,
+                                    contentDescription = null,
+                                    tint = Color(0xFF1DB954),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                             Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Enable Spotify",
+                                    color = textColor,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = "Fetch playlists via login",
+                                    color = secondaryTextColor,
+                                    fontSize = 13.sp
+                                )
+                            }
+                            Switch(
+                                checked = isSpotifyEnabled,
+                                onCheckedChange = { 
+                                    isSpotifyEnabled = it 
+                                    spotifySessionManager.saveIsEnabled(it)
+                                },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.White,
+                                    checkedTrackColor = Color(0xFF1DB954),
+                                    uncheckedThumbColor = Color.White,
+                                    uncheckedTrackColor = secondaryTextColor.copy(alpha = 0.3f)
+                                )
+                            )
+                        }
+
+                        if (isSpotifyEnabled) {
+                            SettingsDivider()
+                            if (isSpotifyLoggedIn) {
+                                SettingsItem(
+                                    icon = Icons.Rounded.AccountCircle,
+                                    title = "Spotify Account",
+                                    subtitle = "Connected ✓",
+                                    onClick = { },
+                                    textColor = textColor,
+                                    secondaryTextColor = secondaryTextColor,
+                                    iconTint = Color(0xFF1DB954)
+                                )
+                                SettingsDivider()
+                                SettingsItem(
+                                    icon = Icons.AutoMirrored.Rounded.Logout,
+                                    title = "Sign Out",
+                                    subtitle = "Disconnect your Spotify account",
+                                    onClick = {
+                                        spotifySessionManager.clearSession()
+                                        isSpotifyLoggedIn = false
+                                    },
+                                    textColor = Color(0xFFE53935),
+                                    secondaryTextColor = secondaryTextColor,
+                                    iconTint = Color(0xFFE53935)
+                                )
+                            } else {
+                                SettingsItem(
+                                    icon = Icons.Rounded.MusicNote,
+                                    title = "Connect Spotify",
+                                    subtitle = "Sign in to fetch your playlists",
+                                    onClick = { showSpotifyAuthDialog = true },
+                                    textColor = textColor,
+                                    secondaryTextColor = secondaryTextColor,
+                                    iconTint = Color(0xFF1DB954),
+                                    showChevron = true
+                                )
+                            }
+                        }
+                    }
+                }
+
+                if (showSpotifyAuthDialog) {
+                    com.ivor.ivormusic.ui.auth.SpotifyAuthDialog(
+                        onDismiss = { showSpotifyAuthDialog = false },
+                        onAuthSuccess = {
+                            showSpotifyAuthDialog = false
+                            isSpotifyLoggedIn = true
+                        }
+                    )
+                }
+            }
 
             // Library Section
             item {
