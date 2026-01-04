@@ -39,6 +39,12 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -389,6 +395,7 @@ private fun SettingsCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ThemeSelector(
     currentTheme: AppTheme,
@@ -408,27 +415,33 @@ private fun ThemeSelector(
             modifier = Modifier.padding(bottom = 12.dp)
         )
         
-        SingleChoiceSegmentedButtonRow(
-            modifier = Modifier.fillMaxWidth()
+        val themes = AppTheme.values()
+        
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
         ) {
-            AppTheme.values().forEachIndexed { index, theme ->
-                SegmentedButton(
-                    selected = currentTheme == theme,
-                    onClick = { onThemeSelected(theme) },
-                    shape = SegmentedButtonDefaults.itemShape(index = index, count = AppTheme.values().size),
-                    label = { 
-                        Text(
-                            text = when(theme) {
-                                AppTheme.SYSTEM -> "System"
-                                AppTheme.LIGHT -> "Light"
-                                AppTheme.DARK -> "Dark"
-                            }
-                        ) 
-                    },
-                    icon = {
-                         SegmentedButtonDefaults.Icon(active = currentTheme == theme)
+            themes.forEachIndexed { index, theme ->
+                ToggleButton(
+                    checked = currentTheme == theme,
+                    onCheckedChange = { onThemeSelected(theme) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .semantics { role = Role.RadioButton },
+                    shapes = when (index) {
+                        0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                        themes.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                        else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
                     }
-                )
+                ) {
+                    Text(
+                        text = when(theme) {
+                            AppTheme.SYSTEM -> "System"
+                            AppTheme.LIGHT -> "Light"
+                            AppTheme.DARK -> "Dark"
+                        }
+                    )
+                }
             }
         }
     }
