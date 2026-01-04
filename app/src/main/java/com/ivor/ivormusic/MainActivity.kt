@@ -17,6 +17,8 @@ import com.ivor.ivormusic.ui.home.HomeViewModel
 import com.ivor.ivormusic.ui.player.PlayerViewModel
 import com.ivor.ivormusic.ui.theme.IvorMusicTheme
 import com.ivor.ivormusic.ui.theme.ThemeViewModel
+import com.ivor.ivormusic.data.AppTheme
+import androidx.compose.foundation.isSystemInDarkTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -24,15 +26,27 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             val themeViewModel: ThemeViewModel = viewModel()
-            val isDarkMode by themeViewModel.isDarkMode.collectAsState()
+            // val isDarkMode by themeViewModel.isDarkMode.collectAsState() // Deprecated
+            val appTheme by themeViewModel.appTheme.collectAsState()
             val loadLocalSongs by themeViewModel.loadLocalSongs.collectAsState()
+            val saveHistory by themeViewModel.saveHistoryToYouTube.collectAsState()
             
-            IvorMusicTheme(darkTheme = isDarkMode) {
+            val isSystemDark = isSystemInDarkTheme()
+            val isDarkTheme = when(appTheme) {
+                AppTheme.SYSTEM -> isSystemDark
+                AppTheme.LIGHT -> false
+                AppTheme.DARK -> true
+            }
+            
+            IvorMusicTheme(darkTheme = isDarkTheme) {
                 MusicApp(
-                    isDarkMode = isDarkMode,
-                    onThemeToggle = { themeViewModel.setDarkMode(it) },
+                    isDarkMode = isDarkTheme,
+                    appTheme = appTheme,
+                    onThemeSelected = { themeViewModel.setAppTheme(it) },
                     loadLocalSongs = loadLocalSongs,
-                    onLoadLocalSongsToggle = { themeViewModel.setLoadLocalSongs(it) }
+                    onLoadLocalSongsToggle = { themeViewModel.setLoadLocalSongs(it) },
+                    saveHistory = saveHistory,
+                    onSaveHistoryToggle = { themeViewModel.setSaveHistoryToYouTube(it) }
                 )
             }
         }
@@ -42,9 +56,12 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MusicApp(
     isDarkMode: Boolean,
-    onThemeToggle: (Boolean) -> Unit,
+    appTheme: AppTheme,
+    onThemeSelected: (AppTheme) -> Unit,
     loadLocalSongs: Boolean,
-    onLoadLocalSongsToggle: (Boolean) -> Unit
+    onLoadLocalSongsToggle: (Boolean) -> Unit,
+    saveHistory: Boolean,
+    onSaveHistoryToggle: (Boolean) -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val navController = rememberNavController()
@@ -60,18 +77,20 @@ fun MusicApp(
                 playerViewModel = playerViewModel,
                 viewModel = homeViewModel,
                 isDarkMode = isDarkMode,
-                onThemeToggle = onThemeToggle,
+                onThemeToggle = {}, // Unused or deprecated
                 onNavigateToSettings = { navController.navigate("settings") },
                 loadLocalSongs = loadLocalSongs
             )
         }
         composable("settings") {
             com.ivor.ivormusic.ui.settings.SettingsScreen(
-                isDarkMode = isDarkMode,
-                onThemeToggle = onThemeToggle,
+                currentTheme = appTheme,
+                onThemeSelected = onThemeSelected,
+                saveHistory = saveHistory,
+                onSaveHistoryToggle = onSaveHistoryToggle,
                 loadLocalSongs = loadLocalSongs,
                 onLoadLocalSongsToggle = onLoadLocalSongsToggle,
-                onLogoutClick = { 
+                onLogoutClick = {  
                     homeViewModel.logout()
                 },
                 onBackClick = { navController.popBackStack() }

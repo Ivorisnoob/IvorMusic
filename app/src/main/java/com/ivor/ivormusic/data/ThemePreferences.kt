@@ -6,8 +6,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
+enum class AppTheme {
+    SYSTEM, LIGHT, DARK
+}
+
 /**
- * Manages app preferences (theme, local songs toggle, etc.).
+ * Manages app preferences (theme, local songs toggle, YouTube history, etc.).
  */
 class ThemePreferences(context: Context) {
 
@@ -15,23 +19,40 @@ class ThemePreferences(context: Context) {
         PREFS_NAME, Context.MODE_PRIVATE
     )
 
-    private val _isDarkMode = MutableStateFlow(getDarkModePreference())
-    val isDarkMode: StateFlow<Boolean> = _isDarkMode.asStateFlow()
+    private val _appTheme = MutableStateFlow(getAppThemePreference())
+    val appTheme: StateFlow<AppTheme> = _appTheme.asStateFlow()
+
+    private val _saveHistoryToYouTube = MutableStateFlow(getSaveHistoryPreference())
+    val saveHistoryToYouTube: StateFlow<Boolean> = _saveHistoryToYouTube.asStateFlow()
 
     private val _loadLocalSongs = MutableStateFlow(getLoadLocalSongsPreference())
     val loadLocalSongs: StateFlow<Boolean> = _loadLocalSongs.asStateFlow()
 
     companion object {
         private const val PREFS_NAME = "ivor_music_theme_prefs"
-        private const val KEY_DARK_MODE = "dark_mode"
+        private const val KEY_THEME = "app_theme"
+        private const val KEY_DARK_MODE = "dark_mode" // Deprecated, migrate to KEY_THEME if needed, but we'll just ignore for now or migrate
         private const val KEY_LOAD_LOCAL_SONGS = "load_local_songs"
+        private const val KEY_SAVE_HISTORY = "save_history_yt"
     }
 
     /**
-     * Get the stored dark mode preference. Defaults to true (dark mode).
+     * Get the stored app theme preference. Defaults to SYSTEM.
      */
-    private fun getDarkModePreference(): Boolean {
-        return prefs.getBoolean(KEY_DARK_MODE, true)
+    private fun getAppThemePreference(): AppTheme {
+        val themeName = prefs.getString(KEY_THEME, AppTheme.SYSTEM.name) ?: AppTheme.SYSTEM.name
+        return try {
+            AppTheme.valueOf(themeName)
+        } catch (e: IllegalArgumentException) {
+            AppTheme.SYSTEM
+        }
+    }
+
+    /**
+     * Get the stored save history preference. Defaults to true.
+     */
+    private fun getSaveHistoryPreference(): Boolean {
+        return prefs.getBoolean(KEY_SAVE_HISTORY, true)
     }
 
     /**
@@ -42,18 +63,26 @@ class ThemePreferences(context: Context) {
     }
 
     /**
-     * Save dark mode preference and update the flow.
+     * Save app theme preference and update the flow.
      */
-    fun setDarkMode(isDark: Boolean) {
-        prefs.edit().putBoolean(KEY_DARK_MODE, isDark).apply()
-        _isDarkMode.value = isDark
+    fun setAppTheme(theme: AppTheme) {
+        prefs.edit().putString(KEY_THEME, theme.name).apply()
+        _appTheme.value = theme
     }
 
     /**
-     * Toggle between dark and light mode.
+     * Save history preference and update the flow.
      */
-    fun toggleDarkMode() {
-        setDarkMode(!_isDarkMode.value)
+    fun setSaveHistoryToYouTube(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_SAVE_HISTORY, enabled).apply()
+        _saveHistoryToYouTube.value = enabled
+    }
+
+    /**
+     * Toggle save history setting.
+     */
+    fun toggleSaveHistory() {
+        setSaveHistoryToYouTube(!_saveHistoryToYouTube.value)
     }
 
     /**

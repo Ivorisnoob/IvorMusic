@@ -33,6 +33,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -51,13 +54,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ivor.ivormusic.data.SessionManager
+import com.ivor.ivormusic.data.AppTheme
 import com.ivor.ivormusic.ui.auth.YouTubeAuthDialog
+import androidx.compose.material.icons.rounded.History
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    isDarkMode: Boolean,
-    onThemeToggle: (Boolean) -> Unit,
+    currentTheme: AppTheme,
+    onThemeSelected: (AppTheme) -> Unit,
+    saveHistory: Boolean,
+    onSaveHistoryToggle: (Boolean) -> Unit,
     loadLocalSongs: Boolean,
     onLoadLocalSongsToggle: (Boolean) -> Unit,
     onLogoutClick: () -> Unit,
@@ -117,12 +124,10 @@ fun SettingsScreen(
             item {
                 SettingsSection(title = "Appearance", textColor = secondaryTextColor) {
                     SettingsCard(surfaceColor = surfaceColor) {
-                        ThemeToggleItem(
-                            isDarkMode = isDarkMode,
-                            onToggle = onThemeToggle,
-                            textColor = textColor,
-                            secondaryTextColor = secondaryTextColor,
-                            accentColor = accentColor
+                        ThemeSelector(
+                            currentTheme = currentTheme,
+                            onThemeSelected = onThemeSelected,
+                            textColor = textColor
                         )
                     }
                 }
@@ -142,6 +147,19 @@ fun SettingsScreen(
                                 textColor = textColor,
                                 secondaryTextColor = secondaryTextColor,
                                 iconTint = Color(0xFF4CAF50)
+                            )
+                            SettingsDivider()
+                            // Save History Toggle
+                            // Only visible when logged in
+                             SettingsToggleItem(
+                                icon = Icons.Rounded.History,
+                                title = "Save History",
+                                subtitle = "Save played tracks to YouTube History",
+                                isChecked = saveHistory,
+                                onToggle = onSaveHistoryToggle,
+                                textColor = textColor,
+                                secondaryTextColor = secondaryTextColor,
+                                accentColor = accentColor
                             )
                             SettingsDivider()
                             SettingsItem(
@@ -372,8 +390,56 @@ private fun SettingsCard(
 }
 
 @Composable
-private fun ThemeToggleItem(
-    isDarkMode: Boolean,
+private fun ThemeSelector(
+    currentTheme: AppTheme,
+    onThemeSelected: (AppTheme) -> Unit,
+    textColor: Color
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+    ) {
+        Text(
+            text = "App Theme",
+            color = textColor,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+        
+        SingleChoiceSegmentedButtonRow(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            AppTheme.values().forEachIndexed { index, theme ->
+                SegmentedButton(
+                    selected = currentTheme == theme,
+                    onClick = { onThemeSelected(theme) },
+                    shape = SegmentedButtonDefaults.itemShape(index = index, count = AppTheme.values().size),
+                    label = { 
+                        Text(
+                            text = when(theme) {
+                                AppTheme.SYSTEM -> "System"
+                                AppTheme.LIGHT -> "Light"
+                                AppTheme.DARK -> "Dark"
+                            }
+                        ) 
+                    },
+                    icon = {
+                         SegmentedButtonDefaults.Icon(active = currentTheme == theme)
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsToggleItem(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    isChecked: Boolean,
     onToggle: (Boolean) -> Unit,
     textColor: Color,
     secondaryTextColor: Color,
@@ -394,7 +460,7 @@ private fun ThemeToggleItem(
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = if (isDarkMode) Icons.Rounded.DarkMode else Icons.Rounded.LightMode,
+                imageVector = icon,
                 contentDescription = null,
                 tint = accentColor,
                 modifier = Modifier.size(22.dp)
@@ -406,13 +472,13 @@ private fun ThemeToggleItem(
         // Text
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "Dark Mode",
+                text = title,
                 color = textColor,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium
             )
             Text(
-                text = if (isDarkMode) "On" else "Off",
+                text = subtitle,
                 color = secondaryTextColor,
                 fontSize = 13.sp
             )
@@ -420,7 +486,7 @@ private fun ThemeToggleItem(
 
         // Switch
         Switch(
-            checked = isDarkMode,
+            checked = isChecked,
             onCheckedChange = onToggle,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color.White,

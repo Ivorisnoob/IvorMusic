@@ -289,6 +289,47 @@ class YouTubeRepository(private val context: Context) {
         }
     }
 
+    /**
+     * Add a song to YouTube watch history.
+     */
+    suspend fun addToHistory(videoId: String) = withContext(Dispatchers.IO) {
+        if (!sessionManager.isLoggedIn()) return@withContext
+        
+        try {
+            // hitting the player endpoint usually registers a view in history
+            val jsonBody = """
+                {
+                    "videoId": "$videoId",
+                    "context": {
+                        "client": {
+                            "clientName": "WEB_REMIX",
+                            "clientVersion": "1.20230102.01.00",
+                            "hl": "en",
+                            "gl": "US"
+                        }
+                    }
+                }
+            """.trimIndent()
+            
+            val cookies = sessionManager.getCookies() ?: return@withContext
+            val authHeader = YouTubeAuthUtils.getAuthorizationHeader(cookies) ?: ""
+            val url = "https://music.youtube.com/youtubei/v1/player"
+            
+            val request = okhttp3.Request.Builder()
+                .url(url)
+                .post(jsonBody.toRequestBody("application/json".toMediaType()))
+                .addHeader("Cookie", cookies)
+                .addHeader("Authorization", authHeader)
+                .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                .addHeader("Origin", "https://music.youtube.com")
+                .build()
+
+            okHttpClient.newCall(request).execute().close()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     // --- Internal API Helper ---
 
     private fun fetchInternalApi(endpoint: String): String {

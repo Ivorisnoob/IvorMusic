@@ -59,6 +59,9 @@ class PlayerViewModel(private val context: Context) : ViewModel() {
     val isCurrentSongLiked: StateFlow<Boolean> = _isCurrentSongLiked.asStateFlow()
     
     val likedSongIds: StateFlow<Set<String>> = likedSongsRepository.likedSongIds
+    
+    private val themePreferences = com.ivor.ivormusic.data.ThemePreferences(context)
+    val saveHistory: StateFlow<Boolean> = themePreferences.saveHistoryToYouTube
 
     // YouTube Repository for fetching more songs
     private val youTubeRepository = com.ivor.ivormusic.data.YouTubeRepository(context)
@@ -110,6 +113,15 @@ class PlayerViewModel(private val context: Context) : ViewModel() {
                        if (song != null) {
                            _currentSong.value = song
                            updateCurrentSongLikedStatus()
+                           
+                           // Add to history if enabled and it's a YouTube song (not local)
+                           // Assuming non-local songs are YouTube for now, or check song.source
+                           // But since we use videoId as ID for YouTube songs...
+                           if (saveHistory.value && song.source == com.ivor.ivormusic.data.SongSource.YOUTUBE) {
+                               viewModelScope.launch {
+                                   youTubeRepository.addToHistory(id)
+                               }
+                           }
                        }
                     }
                 }

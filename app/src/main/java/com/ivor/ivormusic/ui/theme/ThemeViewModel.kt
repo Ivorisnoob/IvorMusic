@@ -3,6 +3,7 @@ package com.ivor.ivormusic.ui.theme
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import com.ivor.ivormusic.data.ThemePreferences
+import com.ivor.ivormusic.data.AppTheme
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -12,15 +13,16 @@ class ThemeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val themePreferences = ThemePreferences(application)
 
-    val isDarkMode: StateFlow<Boolean> = themePreferences.isDarkMode
+    val appTheme: StateFlow<AppTheme> = themePreferences.appTheme
+    val saveHistoryToYouTube: StateFlow<Boolean> = themePreferences.saveHistoryToYouTube
     val loadLocalSongs: StateFlow<Boolean> = themePreferences.loadLocalSongs
 
-    fun setDarkMode(isDark: Boolean) {
-        themePreferences.setDarkMode(isDark)
+    fun setAppTheme(theme: AppTheme) {
+        themePreferences.setAppTheme(theme)
     }
 
-    fun toggleDarkMode() {
-        themePreferences.toggleDarkMode()
+    fun setSaveHistoryToYouTube(enabled: Boolean) {
+        themePreferences.setSaveHistoryToYouTube(enabled)
     }
 
     fun setLoadLocalSongs(load: Boolean) {
