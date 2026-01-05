@@ -106,23 +106,29 @@ class PlayerViewModel(private val context: Context) : ViewModel() {
                 }
 
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-                    // Update current song based on Media ID (more robust than index match)
-                    val id = mediaItem?.mediaId
-                    if (id != null) {
-                       val song = _currentQueue.value.find { it.id == id }
-                       if (song != null) {
-                           _currentSong.value = song
-                           updateCurrentSongLikedStatus()
-                           
-                           // Add to history if enabled and it's a YouTube song (not local)
-                           // Assuming non-local songs are YouTube for now, or check song.source
-                           // But since we use videoId as ID for YouTube songs...
-                           if (saveHistory.value && song.source == com.ivor.ivormusic.data.SongSource.YOUTUBE) {
-                               viewModelScope.launch {
-                                   youTubeRepository.addToHistory(id)
+                    try {
+                        // Update current song based on Media ID (more robust than index match)
+                        val id = mediaItem?.mediaId
+                        if (!id.isNullOrEmpty()) {
+                           val song = _currentQueue.value.find { it.id == id }
+                           if (song != null) {
+                               _currentSong.value = song
+                               updateCurrentSongLikedStatus()
+                               
+                               // Add to history if enabled and it's a YouTube song (not local)
+                               if (saveHistory.value && song.source == com.ivor.ivormusic.data.SongSource.YOUTUBE) {
+                                   viewModelScope.launch {
+                                       try {
+                                           youTubeRepository.addToHistory(id)
+                                       } catch (e: Exception) {
+                                           e.printStackTrace()
+                                       }
+                                   }
                                }
                            }
-                       }
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
                     }
                 }
             })
@@ -223,20 +229,22 @@ class PlayerViewModel(private val context: Context) : ViewModel() {
     }
 
     private fun createMediaItem(song: Song): MediaItem {
-        return if (song.source == com.ivor.ivormusic.data.SongSource.LOCAL && song.uri != null) {
-            MediaItem.fromUri(song.uri)
-        } else {
-            MediaItem.Builder()
-            .setMediaId(song.id)
+        val builder = MediaItem.Builder()
+            .setMediaId(song.id) // Always set mediaId for queue matching
             .setMediaMetadata(
                 androidx.media3.common.MediaMetadata.Builder()
                     .setTitle(song.title)
                     .setArtist(song.artist)
-                    .setArtworkUri(android.net.Uri.parse(song.highResThumbnailUrl ?: song.thumbnailUrl ?: ""))
+                    .setArtworkUri(android.net.Uri.parse(song.highResThumbnailUrl ?: song.thumbnailUrl ?: song.albumArtUri?.toString() ?: ""))
                     .build()
             )
-            .build()
+        
+        // For local songs, also set the URI
+        if (song.source == com.ivor.ivormusic.data.SongSource.LOCAL && song.uri != null) {
+            builder.setUri(song.uri)
         }
+        
+        return builder.build()
     }
 
     fun togglePlayPause() {

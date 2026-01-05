@@ -74,15 +74,8 @@ import kotlinx.coroutines.launch
 /**
  * Segmented list shape helper for Expressive design
  */
-@Composable
-private fun getSegmentedShape(index: Int, count: Int, cornerSize: androidx.compose.ui.unit.Dp = 28.dp): Shape {
-    return when {
-        count == 1 -> RoundedCornerShape(cornerSize)
-        index == 0 -> RoundedCornerShape(topStart = cornerSize, topEnd = cornerSize)
-        index == count - 1 -> RoundedCornerShape(bottomStart = cornerSize, bottomEnd = cornerSize)
-        else -> RectangleShape
-    }
-}
+import com.ivor.ivormusic.ui.components.ExpressiveListItem
+import com.ivor.ivormusic.ui.components.getSegmentedShape
 
 /**
  * Search Screen with Material 3 Expressive design
@@ -482,82 +475,75 @@ private fun SongCard(
     isYouTube: Boolean = false,
     shape: Shape = RoundedCornerShape(20.dp)
 ) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(shape)
-            .clickable(onClick = onClick),
+    ExpressiveListItem(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
         shape = shape,
-        color = cardColor,
-        tonalElevation = 1.dp
-    ) {
-        ListItem(
-            headlineContent = {
-                Text(
-                    text = song.title.takeIf { !it.isNullOrBlank() && !it.startsWith("Unknown", ignoreCase = true) } ?: "Untitled Song",
-                    color = textColor,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            },
-            supportingContent = {
-                Text(
-                    text = song.artist.takeIf { !it.isNullOrBlank() && !it.startsWith("Unknown", ignoreCase = true) } ?: "Unknown Artist",
-                    color = secondaryTextColor,
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            },
-            leadingContent = {
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(RoundedCornerShape(14.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (song.albumArtUri != null || song.thumbnailUrl != null) {
-                        AsyncImage(
-                            model = song.highResThumbnailUrl ?: song.albumArtUri ?: song.thumbnailUrl,
+        headlineContent = {
+            Text(
+                text = song.title.takeIf { !it.isNullOrBlank() && !it.startsWith("Unknown", ignoreCase = true) } ?: "Untitled Song",
+                color = textColor,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        },
+        supportingContent = {
+            Text(
+                text = song.artist.takeIf { !it.isNullOrBlank() && !it.startsWith("Unknown", ignoreCase = true) } ?: "Unknown Artist",
+                color = secondaryTextColor,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        },
+        leadingContent = {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(14.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (song.albumArtUri != null || song.thumbnailUrl != null) {
+                    AsyncImage(
+                        model = song.highResThumbnailUrl ?: song.albumArtUri ?: song.thumbnailUrl,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                if (isYouTube) Color(0xFFFF0000).copy(alpha = 0.2f)
+                                else accentColor.copy(alpha = 0.2f)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Rounded.MusicNote,
                             contentDescription = null,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
+                            tint = if (isYouTube) Color(0xFFFF0000) else accentColor,
+                            modifier = Modifier.size(28.dp)
                         )
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(
-                                    if (isYouTube) Color(0xFFFF0000).copy(alpha = 0.2f)
-                                    else accentColor.copy(alpha = 0.2f)
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Rounded.MusicNote,
-                                contentDescription = null,
-                                tint = if (isYouTube) Color(0xFFFF0000) else accentColor,
-                                modifier = Modifier.size(28.dp)
-                            )
-                        }
                     }
                 }
-            },
-            trailingContent = {
-                Icon(
-                    Icons.Rounded.PlayArrow,
-                    contentDescription = "Play",
-                    tint = accentColor,
-                    modifier = Modifier.size(24.dp)
-                )
-            },
-            colors = ListItemDefaults.colors(
-                containerColor = Color.Transparent,
-                headlineColor = textColor,
-                supportingColor = secondaryTextColor
+            }
+        },
+        trailingContent = {
+            Icon(
+                Icons.Rounded.PlayArrow,
+                contentDescription = "Play",
+                tint = accentColor,
+                modifier = Modifier.size(24.dp)
             )
+        },
+        colors = ListItemDefaults.colors(
+            containerColor = Color.Transparent,
+            headlineColor = textColor,
+            supportingColor = secondaryTextColor
         )
-    }
+    )
 }

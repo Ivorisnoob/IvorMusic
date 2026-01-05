@@ -38,12 +38,13 @@ class YouTubeRepository(private val context: Context) {
         const val FILTER_ALBUMS = "music_albums"
         const val FILTER_PLAYLISTS = "music_playlists"
         const val FILTER_ARTISTS = "music_artists"
+        
+        // Single OkHttpClient instance to prevent thread/connection leaks
+        private val okHttpClient = OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .build()
     }
-
-    private val okHttpClient = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .build()
 
     init {
         initializeNewPipe()
@@ -215,13 +216,24 @@ class YouTubeRepository(private val context: Context) {
                 e.printStackTrace()
             }
         }
-        getPlaylist("LM") 
+        // Don't call getPlaylist("LM") here - it causes infinite recursion!
+        // Just return empty and let the caller handle it
+        emptyList()
     }
     
     suspend fun getPlaylist(playlistId: String): List<Song> = withContext(Dispatchers.IO) {
-        // Fix for "Your Likes" playlist not loading: redirect to the working getLikedMusic() method
+        // For "Liked Music" playlist, use the internal API directly (no redirect to avoid recursion)
         if (playlistId == "LM" || playlistId == "VLLM") {
-            return@withContext getLikedMusic()
+            if (sessionManager.isLoggedIn()) {
+                try {
+                    val json = fetchInternalApi("FEmusic_liked_videos")
+                    val songs = parseSongsFromInternalJson(json)
+                    if (songs.isNotEmpty()) return@withContext songs
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+            return@withContext emptyList()
         }
 
         val newPipeSongs = try {
@@ -276,7 +288,7 @@ class YouTubeRepository(private val context: Context) {
             
             // Basic parsing for avatar
             // Pattern: "thumbnail":{"thumbnails":[{"url":"..."
-            val thumbRegex = """"thumbnails":\[\{"url":"([^"]+)"""".toRegex()
+            val thumbRegex = "\"thumbnails\":\\[\\{\"url\":\"([^\"]+)\"".toRegex()
             val match = thumbRegex.find(jsonResponse)
             
             match?.groupValues?.get(1)?.let { url ->
@@ -290,20 +302,36 @@ class YouTubeRepository(private val context: Context) {
     }
 
     /**
-     * Add a song to YouTube watch history.
+     * Add a song to YouTube Music watch history.
+     * 
+     * This uses the proper two-step method:
+     * 1. Call /player to get the playbackTracking URL
+     * 2. GET that URL to register the playback
      */
     suspend fun addToHistory(videoId: String) = withContext(Dispatchers.IO) {
-        if (!sessionManager.isLoggedIn()) return@withContext
+        if (!sessionManager.isLoggedIn()) {
+            android.util.Log.d("YouTubeHistory", "Not logged in, skipping history sync")
+            return@withContext
+        }
+        
+        android.util.Log.d("YouTubeHistory", "Starting history sync for videoId: $videoId")
         
         try {
-            // hitting the player endpoint usually registers a view in history
-            val jsonBody = """
+            val cookies = sessionManager.getCookies() ?: run {
+                android.util.Log.e("YouTubeHistory", "No cookies found!")
+                return@withContext
+            }
+            val authHeader = YouTubeAuthUtils.getAuthorizationHeader(cookies) ?: ""
+            android.util.Log.d("YouTubeHistory", "Auth header present: ${authHeader.isNotEmpty()}")
+            
+            // Step 1: Call /player to get playbackTracking URL
+            val playerBody = """
                 {
                     "videoId": "$videoId",
                     "context": {
                         "client": {
                             "clientName": "WEB_REMIX",
-                            "clientVersion": "1.20230102.01.00",
+                            "clientVersion": "1.20231204.01.00",
                             "hl": "en",
                             "gl": "US"
                         }
@@ -311,22 +339,65 @@ class YouTubeRepository(private val context: Context) {
                 }
             """.trimIndent()
             
-            val cookies = sessionManager.getCookies() ?: return@withContext
-            val authHeader = YouTubeAuthUtils.getAuthorizationHeader(cookies) ?: ""
-            val url = "https://music.youtube.com/youtubei/v1/player"
-            
-            val request = okhttp3.Request.Builder()
-                .url(url)
-                .post(jsonBody.toRequestBody("application/json".toMediaType()))
+            val playerRequest = okhttp3.Request.Builder()
+                .url("https://music.youtube.com/youtubei/v1/player")
+                .post(playerBody.toRequestBody("application/json".toMediaType()))
                 .addHeader("Cookie", cookies)
                 .addHeader("Authorization", authHeader)
                 .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
                 .addHeader("Origin", "https://music.youtube.com")
+                .addHeader("Referer", "https://music.youtube.com/")
                 .build()
 
-            okHttpClient.newCall(request).execute().close()
-        } catch (e: Exception) {
-            e.printStackTrace()
+            val playerResponse = okHttpClient.newCall(playerRequest).execute()
+            android.util.Log.d("YouTubeHistory", "Player API response code: ${playerResponse.code}")
+            
+            val playerJson = playerResponse.body?.string() ?: run {
+                android.util.Log.e("YouTubeHistory", "Player API returned empty body!")
+                return@withContext
+            }
+            playerResponse.close()
+            
+            // Step 2: Extract the playbackTracking URL from the response
+            // Pattern: "videostatsPlaybackUrl":{"baseUrl":"..."}
+            val urlRegex = "\"videostatsPlaybackUrl\":\\{\"baseUrl\":\"([^\"]+)\"".toRegex()
+            val match = urlRegex.find(playerJson)
+            val trackingUrl = match?.groupValues?.get(1) ?: run {
+                android.util.Log.e("YouTubeHistory", "Could not extract tracking URL from player response!")
+                android.util.Log.d("YouTubeHistory", "Response snippet: ${playerJson.take(500)}")
+                return@withContext
+            }
+            
+            android.util.Log.d("YouTubeHistory", "Tracking URL extracted: ${trackingUrl.take(100)}...")
+            
+            // Generate a CPN (client playback nonce) - 16 random alphanumeric chars
+            val cpnChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"
+            val cpn = (1..16).map { cpnChars.random() }.joinToString("")
+            
+            // Step 3: Call the tracking URL to register the play
+            val finalUrl = "$trackingUrl&ver=2&c=WEB_REMIX&cpn=$cpn"
+            
+            val trackingRequest = okhttp3.Request.Builder()
+                .url(finalUrl)
+                .get()
+                .addHeader("Cookie", cookies)
+                .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                .addHeader("Origin", "https://music.youtube.com")
+                .addHeader("Referer", "https://music.youtube.com/")
+                .build()
+            
+            val trackingResponse = okHttpClient.newCall(trackingRequest).execute()
+            android.util.Log.d("YouTubeHistory", "Tracking API response code: ${trackingResponse.code}")
+            trackingResponse.close()
+            
+            if (trackingResponse.code == 204) {
+                android.util.Log.d("YouTubeHistory", "SUCCESS! History item added for: $videoId")
+            } else {
+                android.util.Log.w("YouTubeHistory", "Unexpected response code: ${trackingResponse.code}")
+            }
+        } catch (t: Throwable) {
+            android.util.Log.e("YouTubeHistory", "Error in addToHistory", t)
+            t.printStackTrace()
         }
     }
 

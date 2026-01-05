@@ -36,6 +36,8 @@ import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
 import coil.compose.AsyncImage
 import com.ivor.ivormusic.data.Song
+import com.ivor.ivormusic.ui.components.ExpressiveListItem
+import com.ivor.ivormusic.ui.components.getSegmentedShape
 
 /**
  * 🌟 Material 3 Expressive Music Player
@@ -614,21 +616,31 @@ private fun ExpressiveQueueView(
                 itemsIndexed(queue, key = { _, song -> song.id }) { index, song ->
                     val isCurrent = song.id == currentSong?.id
                     
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        color = if (isCurrent) primaryColor.copy(alpha = 0.12f) else Color.Transparent,
-                        onClick = { onSongClick(song) }
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Thumbnail
+                    val shape = getSegmentedShape(index, queue.size)
+                    ExpressiveListItem(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { onSongClick(song) },
+                        shape = shape,
+                        headlineContent = {
+                            Text(
+                                text = song.title,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isCurrent) primaryColor else onSurfaceColor,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        },
+                        supportingContent = {
+                            Text(
+                                text = song.artist,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (isCurrent) primaryColor.copy(alpha = 0.7f) else onSurfaceVariantColor,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        },
+                        leadingContent = {
                             Surface(
                                 modifier = Modifier.size(52.dp),
                                 shape = RoundedCornerShape(12.dp),
@@ -641,27 +653,8 @@ private fun ExpressiveQueueView(
                                     contentScale = ContentScale.Crop
                                 )
                             }
-                            
-                            Spacer(modifier = Modifier.width(16.dp))
-                            
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = song.title,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isCurrent) primaryColor else onSurfaceColor,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    text = song.artist,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = if (isCurrent) primaryColor.copy(alpha = 0.7f) else onSurfaceVariantColor,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                            
+                        },
+                        trailingContent = {
                             if (isCurrent) {
                                 Icon(
                                     imageVector = Icons.Rounded.GraphicEq,
@@ -670,8 +663,13 @@ private fun ExpressiveQueueView(
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
-                        }
-                    }
+                        },
+                        colors = ListItemDefaults.colors(
+                            containerColor = if (isCurrent) primaryColor.copy(alpha = 0.12f) else Color.Transparent,
+                            headlineColor = if (isCurrent) primaryColor else onSurfaceColor,
+                            supportingColor = if (isCurrent) primaryColor.copy(alpha = 0.7f) else onSurfaceVariantColor
+                        )
+                    )
                     
                     if (index < queue.size - 1) {
                         HorizontalDivider(
