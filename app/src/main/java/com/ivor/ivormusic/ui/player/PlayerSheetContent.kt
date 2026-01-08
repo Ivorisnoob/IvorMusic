@@ -223,43 +223,45 @@ private fun ExpressiveNowPlayingView(
                 Icon(Icons.Default.KeyboardArrowDown, "Collapse", modifier = Modifier.size(28.dp))
             }
             
-            // Playing source pill
+            // Expressive center toggle - morphs between "Now Playing" and "Lyrics" with animation
+            val pillWidth by animateFloatAsState(
+                targetValue = if (showLyrics) 140f else 160f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessMedium
+                ),
+                label = "PillWidth"
+            )
+            
             Surface(
+                modifier = Modifier
+                    .width(pillWidth.dp)
+                    .clickable { showLyrics = !showLyrics },
                 shape = RoundedCornerShape(24.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh
+                color = if (showLyrics) MaterialTheme.colorScheme.surfaceContainerHigh else primaryColor
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.QueueMusic, 
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    Crossfade(targetState = showLyrics, label = "PillIcon") { isLyrics ->
+                        Icon(
+                            imageVector = if (isLyrics) Icons.AutoMirrored.Filled.QueueMusic else Icons.Rounded.Lyrics,
+                            contentDescription = null,
+                            tint = if (isLyrics) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Now Playing",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    Crossfade(targetState = showLyrics, label = "PillText") { isLyrics ->
+                        Text(
+                            text = if (isLyrics) "Now Playing" else "Lyrics",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = if (isLyrics) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
                 }
-            }
-            
-            // Lyrics toggle button
-            FilledIconToggleButton(
-                checked = showLyrics,
-                onCheckedChange = { showLyrics = it },
-                colors = IconButtonDefaults.filledIconToggleButtonColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    contentColor = MaterialTheme.colorScheme.onSurface,
-                    checkedContainerColor = primaryColor,
-                    checkedContentColor = MaterialTheme.colorScheme.onPrimary
-                ),
-                modifier = Modifier.size(48.dp)
-            ) {
-                Icon(Icons.Rounded.Lyrics, "Lyrics", modifier = Modifier.size(24.dp))
             }
             
             // Queue button - static shape (no morphing needed for utility buttons)
