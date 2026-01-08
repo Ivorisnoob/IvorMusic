@@ -12,15 +12,11 @@ class ThemeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val themePreferences = ThemePreferences(application)
 
-    val isDarkMode: StateFlow<Boolean> = themePreferences.isDarkMode
+    val themeMode: StateFlow<ThemeMode> = themePreferences.themeMode
     val loadLocalSongs: StateFlow<Boolean> = themePreferences.loadLocalSongs
 
-    fun setDarkMode(isDark: Boolean) {
-        themePreferences.setDarkMode(isDark)
-    }
-
-    fun toggleDarkMode() {
-        themePreferences.toggleDarkMode()
+    fun setThemeMode(mode: ThemeMode) {
+        themePreferences.setThemeMode(mode)
     }
 
     fun setLoadLocalSongs(load: Boolean) {

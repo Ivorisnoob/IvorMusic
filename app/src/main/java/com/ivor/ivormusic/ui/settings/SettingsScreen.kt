@@ -54,9 +54,16 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.foundation.shape.CornerSize
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -94,6 +101,7 @@ import coil.compose.AsyncImage
 import com.ivor.ivormusic.BuildConfig
 import com.ivor.ivormusic.data.SessionManager
 import com.ivor.ivormusic.ui.auth.YouTubeAuthDialog
+import com.ivor.ivormusic.ui.theme.ThemeMode
 import kotlinx.coroutines.delay
 
 // Helper to convert Expressive Polygons to a Compose Shape
@@ -134,8 +142,8 @@ private class PolygonShape(private val polygon: RoundedPolygon) : Shape {
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SettingsScreen(
-    isDarkMode: Boolean,
-    onThemeToggle: (Boolean) -> Unit,
+    currentThemeMode: ThemeMode,
+    onThemeModeChange: (ThemeMode) -> Unit,
     loadLocalSongs: Boolean,
     onLoadLocalSongsToggle: (Boolean) -> Unit,
     onLogoutClick: () -> Unit,
@@ -229,11 +237,10 @@ fun SettingsScreen(
                     delay = 0
                 ) {
                     ExpressiveSettingsCard(surfaceColor = surfaceColor) {
-                        ExpressiveThemeToggleItem(
-                            isDarkMode = isDarkMode,
-                            onToggle = onThemeToggle,
+                        ExpressiveThemeSelectGroup(
+                            currentMode = currentThemeMode,
+                            onModeSelected = onThemeModeChange,
                             textColor = textColor,
-                            secondaryTextColor = secondaryTextColor,
                             accentColor = accentColor
                         )
                     }
@@ -418,91 +425,65 @@ private fun ExpressiveSettingsCard(
     }
 }
 
+
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun ExpressiveThemeToggleItem(
-    isDarkMode: Boolean,
-    onToggle: (Boolean) -> Unit,
+private fun ExpressiveThemeSelectGroup(
+    currentMode: ThemeMode,
+    onModeSelected: (ThemeMode) -> Unit,
     textColor: Color,
-    secondaryTextColor: Color,
     accentColor: Color
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "scale"
-    )
-    
-    val iconRotation by animateFloatAsState(
-        targetValue = if (isDarkMode) 180f else 0f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "rotation"
-    )
-    
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .scale(scale)
-            .clip(RoundedCornerShape(18.dp))
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null
-            ) { onToggle(!isDarkMode) }
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically
+    Column(
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
-        // Animated Icon with rotation
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(accentColor.copy(alpha = 0.12f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = if (isDarkMode) Icons.Rounded.DarkMode else Icons.Rounded.LightMode,
-                contentDescription = null,
-                tint = accentColor,
-                modifier = Modifier
-                    .size(26.dp)
-                    .graphicsLayer { rotationZ = iconRotation }
-            )
-        }
-
-        Spacer(modifier = Modifier.width(16.dp))
-
-        // Text
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = "Dark Mode",
-                color = textColor,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = if (isDarkMode) "Easier on the eyes at night" else "Bright and clean",
-                color = secondaryTextColor,
-                fontSize = 13.sp
-            )
-        }
-
-        // Switch with expressive styling
-        Switch(
-            checked = isDarkMode,
-            onCheckedChange = onToggle,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
-                checkedTrackColor = accentColor,
-                uncheckedThumbColor = Color.White,
-                uncheckedTrackColor = secondaryTextColor.copy(alpha = 0.3f),
-                uncheckedBorderColor = Color.Transparent,
-                checkedBorderColor = Color.Transparent
-            )
+        Text(
+            text = "Theme",
+            color = textColor,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(bottom = 12.dp)
         )
+        
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
+        ) {
+            val options = ThemeMode.values()
+            
+            options.forEachIndexed { index, mode ->
+                // Determine shape based on position
+                val shapes = when (index) {
+                    0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                    options.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                    else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                }
+                
+                ToggleButton(
+                    checked = currentMode == mode,
+                    onCheckedChange = { onModeSelected(mode) },
+                    modifier = Modifier.weight(1f),
+                    shapes = shapes,
+                    colors = ToggleButtonDefaults.toggleButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        checkedContainerColor = accentColor,
+                        contentColor = textColor,
+                        checkedContentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) {
+                    // Content
+                    Text(
+                        text = when(mode) {
+                            ThemeMode.SYSTEM -> "System"
+                            ThemeMode.LIGHT -> "Light"
+                            ThemeMode.DARK -> "Dark"
+                        },
+                        fontSize = 14.sp,
+                        fontWeight = if (currentMode == mode) FontWeight.Bold else FontWeight.Medium
+                    )
+                }
+            }
+        }
     }
 }
 

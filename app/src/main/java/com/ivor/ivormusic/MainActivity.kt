@@ -18,19 +18,36 @@ import com.ivor.ivormusic.ui.player.PlayerViewModel
 import com.ivor.ivormusic.ui.theme.IvorMusicTheme
 import com.ivor.ivormusic.ui.theme.ThemeViewModel
 
+import androidx.compose.foundation.isSystemInDarkTheme
+import com.ivor.ivormusic.ui.theme.ThemeMode
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             val themeViewModel: ThemeViewModel = viewModel()
-            val isDarkMode by themeViewModel.isDarkMode.collectAsState()
+            val themeMode by themeViewModel.themeMode.collectAsState()
             val loadLocalSongs by themeViewModel.loadLocalSongs.collectAsState()
             
-            IvorMusicTheme(darkTheme = isDarkMode) {
+            val isSystemDark = isSystemInDarkTheme()
+            val isDarkTheme = remember(themeMode, isSystemDark) {
+                when (themeMode) {
+                    ThemeMode.SYSTEM -> isSystemDark
+                    ThemeMode.LIGHT -> false
+                    ThemeMode.DARK -> true
+                }
+            }
+            
+            IvorMusicTheme(darkTheme = isDarkTheme) {
                 MusicApp(
-                    isDarkMode = isDarkMode,
-                    onThemeToggle = { themeViewModel.setDarkMode(it) },
+                    currentThemeMode = themeMode,
+                    onThemeModeChange = { themeViewModel.setThemeMode(it) },
+                    isDarkMode = isDarkTheme, // Derived for compatibility
+                    onThemeToggle = { isDark ->
+                        // Fallback toggle for legacy consumers
+                        themeViewModel.setThemeMode(if (isDark) ThemeMode.DARK else ThemeMode.LIGHT)
+                    },
                     loadLocalSongs = loadLocalSongs,
                     onLoadLocalSongsToggle = { themeViewModel.setLoadLocalSongs(it) }
                 )
@@ -41,6 +58,8 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun MusicApp(
+    currentThemeMode: ThemeMode,
+    onThemeModeChange: (ThemeMode) -> Unit,
     isDarkMode: Boolean,
     onThemeToggle: (Boolean) -> Unit,
     loadLocalSongs: Boolean,
@@ -68,8 +87,8 @@ fun MusicApp(
         }
         composable("settings") {
             com.ivor.ivormusic.ui.settings.SettingsScreen(
-                isDarkMode = isDarkMode,
-                onThemeToggle = onThemeToggle,
+                currentThemeMode = currentThemeMode,
+                onThemeModeChange = onThemeModeChange,
                 loadLocalSongs = loadLocalSongs,
                 onLoadLocalSongsToggle = onLoadLocalSongsToggle,
                 onLogoutClick = { 

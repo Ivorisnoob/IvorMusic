@@ -2,6 +2,7 @@ package com.ivor.ivormusic.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.ivor.ivormusic.ui.theme.ThemeMode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,23 +16,41 @@ class ThemePreferences(context: Context) {
         PREFS_NAME, Context.MODE_PRIVATE
     )
 
-    private val _isDarkMode = MutableStateFlow(getDarkModePreference())
-    val isDarkMode: StateFlow<Boolean> = _isDarkMode.asStateFlow()
+    private val _themeMode = MutableStateFlow(getThemeModePreference())
+    val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
 
     private val _loadLocalSongs = MutableStateFlow(getLoadLocalSongsPreference())
     val loadLocalSongs: StateFlow<Boolean> = _loadLocalSongs.asStateFlow()
 
     companion object {
         private const val PREFS_NAME = "ivor_music_theme_prefs"
-        private const val KEY_DARK_MODE = "dark_mode"
+        private const val KEY_THEME_MODE = "theme_mode_enum"
+        private const val KEY_OLD_DARK_MODE = "dark_mode" // For migration
         private const val KEY_LOAD_LOCAL_SONGS = "load_local_songs"
     }
 
     /**
-     * Get the stored dark mode preference. Defaults to true (dark mode).
+     * Get the stored theme mode preference. Defaults to SYSTEM.
+     * Migrates from old boolean preference if needed.
      */
-    private fun getDarkModePreference(): Boolean {
-        return prefs.getBoolean(KEY_DARK_MODE, true)
+    private fun getThemeModePreference(): ThemeMode {
+        // Check if new key exists
+        if (prefs.contains(KEY_THEME_MODE)) {
+            val modeName = prefs.getString(KEY_THEME_MODE, ThemeMode.SYSTEM.name)
+            return try {
+                ThemeMode.valueOf(modeName ?: ThemeMode.SYSTEM.name)
+            } catch (e: IllegalArgumentException) {
+                ThemeMode.SYSTEM
+            }
+        }
+        
+        // Callback to old preference for migration
+        if (prefs.contains(KEY_OLD_DARK_MODE)) {
+            val oldDarkMode = prefs.getBoolean(KEY_OLD_DARK_MODE, true)
+            return if (oldDarkMode) ThemeMode.DARK else ThemeMode.LIGHT
+        }
+        
+        return ThemeMode.SYSTEM
     }
 
     /**
@@ -42,18 +61,11 @@ class ThemePreferences(context: Context) {
     }
 
     /**
-     * Save dark mode preference and update the flow.
+     * Save theme mode preference and update the flow.
      */
-    fun setDarkMode(isDark: Boolean) {
-        prefs.edit().putBoolean(KEY_DARK_MODE, isDark).apply()
-        _isDarkMode.value = isDark
-    }
-
-    /**
-     * Toggle between dark and light mode.
-     */
-    fun toggleDarkMode() {
-        setDarkMode(!_isDarkMode.value)
+    fun setThemeMode(mode: ThemeMode) {
+        prefs.edit().putString(KEY_THEME_MODE, mode.name).apply()
+        _themeMode.value = mode
     }
 
     /**
