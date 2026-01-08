@@ -21,6 +21,7 @@ import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Smartphone
+import androidx.compose.material.icons.rounded.Lyrics
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -39,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
 import coil.compose.AsyncImage
 import com.ivor.ivormusic.data.Song
+import com.ivor.ivormusic.data.LyricsResult
 
 /**
  * 🌟 Material 3 Expressive Music Player
@@ -76,6 +78,9 @@ fun PlayerSheetContent(
     // Download states
     val downloadingIds by viewModel.downloadingIds.collectAsState()
     val downloadedSongs by viewModel.downloadedSongs.collectAsState()
+    
+    // Lyrics state
+    val lyricsResult by viewModel.lyricsResult.collectAsState()
     
     var showQueue by remember { mutableStateOf(false) }
 
@@ -136,6 +141,9 @@ fun PlayerSheetContent(
                     isDownloaded = currentSong?.let { viewModel.isDownloaded(it.id) } ?: false,
                     isDownloading = currentSong?.let { viewModel.isDownloading(it.id) } ?: false,
                     isLocalOriginal = currentSong?.let { viewModel.isLocalOriginal(it) } ?: false,
+                    // Lyrics
+                    lyricsResult = lyricsResult,
+                    onSeekTo = { viewModel.seekTo(it) },
                     
                     onCollapse = onCollapse,
                     onShowQueue = { showQueue = true },
@@ -173,6 +181,8 @@ private fun ExpressiveNowPlayingView(
     isDownloaded: Boolean,
     isDownloading: Boolean,
     isLocalOriginal: Boolean,
+    lyricsResult: LyricsResult,
+    onSeekTo: (Long) -> Unit,
     onCollapse: () -> Unit,
     onShowQueue: () -> Unit,
     viewModel: PlayerViewModel,
@@ -184,6 +194,8 @@ private fun ExpressiveNowPlayingView(
     onSurfaceVariantColor: Color,
     stableShapes: IconButtonShapes
 ) {
+    // State for toggling between album art and lyrics
+    var showLyrics by remember { mutableStateOf(false) }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -235,6 +247,21 @@ private fun ExpressiveNowPlayingView(
                 }
             }
             
+            // Lyrics toggle button
+            FilledIconToggleButton(
+                checked = showLyrics,
+                onCheckedChange = { showLyrics = it },
+                colors = IconButtonDefaults.filledIconToggleButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                    checkedContainerColor = primaryColor,
+                    checkedContentColor = MaterialTheme.colorScheme.onPrimary
+                ),
+                modifier = Modifier.size(48.dp)
+            ) {
+                Icon(Icons.Rounded.Lyrics, "Lyrics", modifier = Modifier.size(24.dp))
+            }
+            
             // Queue button - static shape (no morphing needed for utility buttons)
             FilledIconButton(
                 onClick = onShowQueue,
@@ -249,7 +276,7 @@ private fun ExpressiveNowPlayingView(
             }
         }
         
-        // ========== 2. ALBUM ART (Fills available space) ==========
+        // ========== 2. ALBUM ART / LYRICS (Fills available space) ==========
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -257,80 +284,97 @@ private fun ExpressiveNowPlayingView(
                 .padding(horizontal = 24.dp),
             contentAlignment = Alignment.Center
         ) {
-            // Calculate responsive album art size based on available space
-            BoxWithConstraints {
-                val albumSize = minOf(maxWidth, maxHeight) * 0.9f
-                val cornerRadius = albumSize * 0.15f
-                
-                Box(contentAlignment = Alignment.Center) {
-                    // Outer glow/shadow layer
-                    Surface(
-                        modifier = Modifier
-                            .size(albumSize)
-                            .offset(y = 8.dp),
-                        shape = RoundedCornerShape(cornerRadius),
-                        color = primaryContainerColor.copy(alpha = 0.3f),
-                        shadowElevation = 24.dp
-                    ) {}
-                    
-                    // Main album art container with expressive squircle shape
-                    Surface(
-                        modifier = Modifier.size(albumSize),
-                        shape = RoundedCornerShape(cornerRadius),
-                        shadowElevation = 16.dp,
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh
+            Crossfade(targetState = showLyrics, label = "AlbumLyricsCrossfade") { isLyricsVisible ->
+                if (isLyricsVisible) {
+                    // Synced Lyrics View
+                    SyncedLyricsView(
+                        lyricsResult = lyricsResult,
+                        currentPositionMs = progress,
+                        onSeekTo = onSeekTo,
+                        primaryColor = primaryColor,
+                        onSurfaceColor = onSurfaceColor,
+                        onSurfaceVariantColor = onSurfaceVariantColor
+                    )
+                } else {
+                    // Album Art
+                    BoxWithConstraints(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Box(modifier = Modifier.fillMaxSize()) {
-                            // Album Art
-                            if (currentSong?.albumArtUri != null || currentSong?.thumbnailUrl != null) {
-                                AsyncImage(
-                                    model = currentSong?.highResThumbnailUrl ?: currentSong?.thumbnailUrl ?: currentSong?.albumArtUri,
-                                    contentDescription = "Album Art",
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .clip(RoundedCornerShape(cornerRadius)),
-                                    contentScale = ContentScale.Crop
-                                )
-                            } else {
-                                // Placeholder with expressive shape
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(
-                                            Brush.verticalGradient(
-                                                colors = listOf(
-                                                    primaryContainerColor.copy(alpha = 0.5f),
-                                                    MaterialTheme.colorScheme.surfaceContainerHigh
+                        val albumSize = minOf(maxWidth, maxHeight) * 0.9f
+                        val cornerRadius = albumSize * 0.15f
+                        
+                        Box(contentAlignment = Alignment.Center) {
+                            // Outer glow/shadow layer
+                            Surface(
+                                modifier = Modifier
+                                    .size(albumSize)
+                                    .offset(y = 8.dp),
+                                shape = RoundedCornerShape(cornerRadius),
+                                color = primaryContainerColor.copy(alpha = 0.3f),
+                                shadowElevation = 24.dp
+                            ) {}
+                            
+                            // Main album art container with expressive squircle shape
+                            Surface(
+                                modifier = Modifier.size(albumSize),
+                                shape = RoundedCornerShape(cornerRadius),
+                                shadowElevation = 16.dp,
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh
+                            ) {
+                                Box(modifier = Modifier.fillMaxSize()) {
+                                    // Album Art
+                                    if (currentSong?.albumArtUri != null || currentSong?.thumbnailUrl != null) {
+                                        AsyncImage(
+                                            model = currentSong?.highResThumbnailUrl ?: currentSong?.thumbnailUrl ?: currentSong?.albumArtUri,
+                                            contentDescription = "Album Art",
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .clip(RoundedCornerShape(cornerRadius)),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    } else {
+                                        // Placeholder with expressive shape
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .background(
+                                                    Brush.verticalGradient(
+                                                        colors = listOf(
+                                                            primaryContainerColor.copy(alpha = 0.5f),
+                                                            MaterialTheme.colorScheme.surfaceContainerHigh
+                                                        )
+                                                    )
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.MusicNote,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(albumSize * 0.35f),
+                                                tint = onSurfaceVariantColor.copy(alpha = 0.3f)
+                                            )
+                                        }
+                                    }
+                                    
+                                    // Subtle inner gradient for depth
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clip(RoundedCornerShape(cornerRadius))
+                                            .background(
+                                                Brush.verticalGradient(
+                                                    colors = listOf(
+                                                        Color.Transparent,
+                                                        Color.Black.copy(alpha = 0.1f)
+                                                    ),
+                                                    startY = 0f,
+                                                    endY = Float.POSITIVE_INFINITY
                                                 )
                                             )
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.MusicNote,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(albumSize * 0.35f),
-                                        tint = onSurfaceVariantColor.copy(alpha = 0.3f)
                                     )
                                 }
                             }
-                            
-                            // Subtle inner gradient for depth
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(RoundedCornerShape(cornerRadius))
-                                    .background(
-                                        Brush.verticalGradient(
-                                            colors = listOf(
-                                                Color.Transparent,
-                                                Color.Black.copy(alpha = 0.1f)
-                                            ),
-                                            startY = 0f,
-                                            endY = Float.POSITIVE_INFINITY
-                                        )
-                                    )
-                            )
                         }
                     }
                 }
