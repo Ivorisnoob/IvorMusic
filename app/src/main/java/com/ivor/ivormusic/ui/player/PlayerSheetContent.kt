@@ -56,6 +56,7 @@ import com.ivor.ivormusic.data.LyricsResult
 @Composable
 fun PlayerSheetContent(
     viewModel: PlayerViewModel,
+    ambientBackground: Boolean = true,
     onCollapse: () -> Unit,
     onLoadMore: () -> Unit = {}
 ) {
@@ -144,6 +145,7 @@ fun PlayerSheetContent(
                     // Lyrics
                     lyricsResult = lyricsResult,
                     onSeekTo = { viewModel.seekTo(it) },
+                    ambientBackground = ambientBackground,
                     
                     onCollapse = onCollapse,
                     onShowQueue = { showQueue = true },
@@ -183,6 +185,7 @@ private fun ExpressiveNowPlayingView(
     isLocalOriginal: Boolean,
     lyricsResult: LyricsResult,
     onSeekTo: (Long) -> Unit,
+    ambientBackground: Boolean,
     onCollapse: () -> Unit,
     onShowQueue: () -> Unit,
     viewModel: PlayerViewModel,
@@ -196,11 +199,28 @@ private fun ExpressiveNowPlayingView(
 ) {
     // State for toggling between album art and lyrics
     var showLyrics by remember { mutableStateOf(false) }
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+    
+    // Get album art URL for background
+    val albumArtUrl = currentSong?.highResThumbnailUrl 
+        ?: currentSong?.thumbnailUrl 
+        ?: currentSong?.albumArtUri?.toString()
+    
+    Box(
+        modifier = Modifier.fillMaxSize()
     ) {
+        // Chromatic Mist ambient background
+        ChromaticMistBackground(
+            albumArtUrl = albumArtUrl,
+            enabled = ambientBackground,
+            fallbackColor = MaterialTheme.colorScheme.background,
+            modifier = Modifier.fillMaxSize()
+        )
+        
+        // Content layer
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+        ) {
         // ========== 1. TOP BAR ==========
         Row(
             modifier = Modifier
@@ -643,15 +663,16 @@ private fun ExpressiveNowPlayingView(
                                 modifier = Modifier.size(28.dp)
                             )
                         }
+                        }
                     }
                 }
             }
         }
-    }
+    } // End Box wrapper
 }
 
 /**
- * 📋 Expressive Queue View
+ * Expressive Queue View
  * 
  * Features:
  * - Matches the player's visual design language
