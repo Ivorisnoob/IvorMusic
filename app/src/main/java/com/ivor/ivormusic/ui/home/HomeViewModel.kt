@@ -55,8 +55,38 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _userAvatar = MutableStateFlow<String?>(sessionManager.getUserAvatar())
     val userAvatar: StateFlow<String?> = _userAvatar.asStateFlow()
 
+    // Downloads
+    private val downloadRepository = com.ivor.ivormusic.data.DownloadRepository(application)
+    val downloadedSongs = downloadRepository.downloadedSongs
+    val downloadingIds = downloadRepository.downloadingIds
+    val downloadProgress = downloadRepository.downloadProgress
+
     init {
         checkYouTubeConnection()
+    }
+    
+    // --- Download Actions ---
+    
+    fun toggleDownload(song: Song) {
+        viewModelScope.launch {
+            if (downloadRepository.isDownloaded(song.id)) {
+                downloadRepository.deleteDownload(song.id)
+            } else {
+                downloadRepository.downloadSong(song)
+            }
+        }
+    }
+    
+    fun isDownloaded(songId: String): Boolean {
+        return downloadRepository.isDownloaded(songId)
+    }
+    
+    fun isDownloading(songId: String): Boolean {
+        return downloadingIds.value.contains(songId)
+    }
+    
+    fun isLocalOriginal(song: Song): Boolean {
+        return downloadRepository.isLocalOriginal(song)
     }
 
     fun loadSongs() {

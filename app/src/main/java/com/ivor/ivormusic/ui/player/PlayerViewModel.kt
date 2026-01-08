@@ -59,6 +59,12 @@ class PlayerViewModel(private val context: Context) : ViewModel() {
     val isCurrentSongLiked: StateFlow<Boolean> = _isCurrentSongLiked.asStateFlow()
     
     val likedSongIds: StateFlow<Set<String>> = likedSongsRepository.likedSongIds
+    
+    // Downloads
+    private val downloadRepository = com.ivor.ivormusic.data.DownloadRepository(context)
+    val downloadedSongs = downloadRepository.downloadedSongs
+    val downloadingIds = downloadRepository.downloadingIds
+    val downloadProgress = downloadRepository.downloadProgress
 
     // YouTube Repository for fetching more songs
     private val youTubeRepository = com.ivor.ivormusic.data.YouTubeRepository(context)
@@ -294,6 +300,44 @@ class PlayerViewModel(private val context: Context) : ViewModel() {
         } else {
             false
         }
+    }
+    
+    // --- Download Actions ---
+    
+    fun toggleDownload(song: Song) {
+        viewModelScope.launch {
+            if (downloadRepository.isDownloaded(song.id)) {
+                downloadRepository.deleteDownload(song.id)
+            } else {
+                downloadRepository.downloadSong(song)
+            }
+        }
+    }
+    
+    fun isDownloaded(songId: String): Boolean {
+        return downloadRepository.isDownloaded(songId)
+    }
+    
+    fun isDownloading(songId: String): Boolean {
+        return downloadingIds.value.contains(songId)
+    }
+    
+    fun isLocalOriginal(song: Song): Boolean {
+        return downloadRepository.isLocalOriginal(song)
+    }
+    
+    fun downloadPlaylist(songs: List<Song>) {
+        viewModelScope.launch {
+            downloadRepository.downloadPlaylist(songs)
+        }
+    }
+    
+    fun cancelDownload(songId: String) {
+        downloadRepository.cancelDownload(songId)
+    }
+    
+    fun deleteDownload(songId: String) {
+        downloadRepository.deleteDownload(songId)
     }
 
     override fun onCleared() {

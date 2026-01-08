@@ -62,6 +62,7 @@ fun MusicApp(
                 isDarkMode = isDarkMode,
                 onThemeToggle = onThemeToggle,
                 onNavigateToSettings = { navController.navigate("settings") },
+                onNavigateToDownloads = { navController.navigate("downloads") },
                 loadLocalSongs = loadLocalSongs
             )
         }
@@ -75,6 +76,28 @@ fun MusicApp(
                     homeViewModel.logout()
                 },
                 onBackClick = { navController.popBackStack() }
+            )
+        }
+        composable("downloads") {
+            val downloadedSongs by playerViewModel.downloadedSongs.collectAsState()
+            val downloadProgress by playerViewModel.downloadProgress.collectAsState()
+            
+            com.ivor.ivormusic.ui.downloads.DownloadsScreen(
+                downloadedSongs = downloadedSongs,
+                activeDownloads = downloadProgress,
+                onBack = { navController.popBackStack() },
+                onPlaySong = { song -> 
+                    playerViewModel.playSong(song)
+                },
+                onDeleteDownload = { songId -> 
+                    playerViewModel.deleteDownload(songId)
+                },
+                onCancelDownload = { songId -> 
+                    playerViewModel.cancelDownload(songId)
+                },
+                onRetryDownload = { song -> 
+                    playerViewModel.toggleDownload(song)
+                }
             )
         }
     }

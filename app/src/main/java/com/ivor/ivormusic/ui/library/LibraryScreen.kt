@@ -34,12 +34,16 @@ import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.PlaylistPlay
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Smartphone
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -128,6 +132,10 @@ fun LibraryScreen(
     val userPlaylists by viewModel.userPlaylists.collectAsState()
     val likedSongs by viewModel.likedSongs.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    
+    // Download states
+    val downloadingIds by viewModel.downloadingIds.collectAsState()
+    val downloadedSongs by viewModel.downloadedSongs.collectAsState()
     
     // Tab state
     var selectedTab by remember { mutableIntStateOf(0) }
@@ -267,7 +275,11 @@ fun LibraryScreen(
                                     secondaryTextColor = secondaryTextColor,
                                     accentColor = accentColor,
                                     isYouTube = true,
-                                    shape = getSegmentedShape(index, likedSongs.take(5).size)
+                                    shape = getSegmentedShape(index, likedSongs.take(5).size),
+                                    onDownloadClick = { viewModel.toggleDownload(song) },
+                                    isDownloaded = viewModel.isDownloaded(song.id),
+                                    isDownloading = viewModel.isDownloading(song.id),
+                                    isLocalOriginal = viewModel.isLocalOriginal(song)
                                 )
                                 if (index < likedSongs.take(5).size - 1) {
                                     HorizontalDivider(
@@ -298,7 +310,9 @@ fun LibraryScreen(
                                     textColor = textColor,
                                     secondaryTextColor = secondaryTextColor,
                                     accentColor = accentColor,
-                                    shape = getSegmentedShape(index, songs.take(10).size)
+                                    shape = getSegmentedShape(index, songs.take(10).size),
+                                    // Local library items are typically local originals, but check anyway
+                                    isLocalOriginal = viewModel.isLocalOriginal(song)
                                 )
                                 if (index < songs.take(10).size - 1) {
                                     HorizontalDivider(
@@ -336,11 +350,15 @@ fun LibraryScreen(
                                 onClick = { onPlayQueue(allSongs, song) },
                                 cardColor = cardColor,
                                 textColor = textColor,
-                                secondaryTextColor = secondaryTextColor,
-                                accentColor = accentColor,
-                                isYouTube = song.source == com.ivor.ivormusic.data.SongSource.YOUTUBE,
-                                shape = getSegmentedShape(index, allSongs.size)
-                            )
+                                    secondaryTextColor = secondaryTextColor,
+                                    accentColor = accentColor,
+                                    isYouTube = song.source == com.ivor.ivormusic.data.SongSource.YOUTUBE,
+                                    shape = getSegmentedShape(index, allSongs.size),
+                                    onDownloadClick = { viewModel.toggleDownload(song) },
+                                    isDownloaded = viewModel.isDownloaded(song.id),
+                                    isDownloading = viewModel.isDownloading(song.id),
+                                    isLocalOriginal = viewModel.isLocalOriginal(song)
+                                )
                             if (index < allSongs.size - 1) {
                                 HorizontalDivider(
                                     modifier = Modifier.padding(horizontal = 24.dp),
@@ -690,7 +708,11 @@ private fun LibrarySongCard(
     secondaryTextColor: Color,
     accentColor: Color,
     isYouTube: Boolean = false,
-    shape: Shape = RoundedCornerShape(20.dp)
+    shape: Shape = RoundedCornerShape(20.dp),
+    onDownloadClick: (() -> Unit)? = null,
+    isDownloaded: Boolean = false,
+    isDownloading: Boolean = false,
+    isLocalOriginal: Boolean = false
 ) {
     Surface(
         modifier = Modifier
@@ -756,12 +778,49 @@ private fun LibrarySongCard(
                 }
             },
             trailingContent = {
-                Icon(
-                    Icons.Rounded.PlayArrow,
-                    contentDescription = "Play",
-                    tint = accentColor,
-                    modifier = Modifier.size(24.dp)
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                     // Download Status / Button
+                    if (isDownloading) {
+                        CircularWavyProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = accentColor
+                        )
+                    } else if (isDownloaded) {
+                        IconButton(onClick = { onDownloadClick?.invoke() }) {
+                            Icon(
+                                Icons.Rounded.CheckCircle,
+                                contentDescription = "Downloaded",
+                                tint = accentColor,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    } else if (isLocalOriginal) {
+                         Icon(
+                            Icons.Rounded.Smartphone,
+                            contentDescription = "Local File",
+                            tint = secondaryTextColor,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    } else if (onDownloadClick != null) {
+                         IconButton(onClick = onDownloadClick) {
+                            Icon(
+                                Icons.Rounded.Download,
+                                contentDescription = "Download",
+                                tint = secondaryTextColor,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.width(4.dp))
+                    
+                    Icon(
+                        Icons.Rounded.PlayArrow,
+                        contentDescription = "Play",
+                        tint = accentColor,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             },
             colors = ListItemDefaults.colors(
                 containerColor = Color.Transparent,

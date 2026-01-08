@@ -33,6 +33,7 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.People
 import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Download
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.WindowInsets
@@ -118,6 +119,7 @@ fun HomeScreen(
     isDarkMode: Boolean = true,
     onThemeToggle: (Boolean) -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
+    onNavigateToDownloads: () -> Unit = {},
     loadLocalSongs: Boolean = true
 ) {
     val localSongs by viewModel.songs.collectAsState()
@@ -228,6 +230,7 @@ fun HomeScreen(
                                 },
                                 onProfileClick = { showAuthDialog = true },
                                 onSettingsClick = onNavigateToSettings,
+                                onDownloadsClick = onNavigateToDownloads,
                                 isDarkMode = isDarkMode,
                                 contentPadding = PaddingValues(bottom = 160.dp), // Space for navbar + miniplayer
                                 viewModel = viewModel
@@ -338,6 +341,7 @@ fun YourMixContent(
     onPlayClick: () -> Unit,
     onProfileClick: () -> Unit,
     onSettingsClick: () -> Unit,
+    onDownloadsClick: () -> Unit = {},
     isDarkMode: Boolean,
     contentPadding: PaddingValues,
     viewModel: HomeViewModel
@@ -357,7 +361,7 @@ fun YourMixContent(
                 .windowInsetsPadding(WindowInsets.statusBars),
             contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding())
         ) {
-            item { TopBarSection(onProfileClick = onProfileClick, onSettingsClick = onSettingsClick, isDarkMode = isDarkMode, viewModel = viewModel) }
+            item { TopBarSection(onProfileClick = onProfileClick, onSettingsClick = onSettingsClick, onDownloadsClick = onDownloadsClick, isDarkMode = isDarkMode, viewModel = viewModel) }
             item { HeroSection(songs = songs, onPlayClick = onPlayClick, isDarkMode = isDarkMode) }
             item {
                 if (songs.isNotEmpty()) {
@@ -382,6 +386,7 @@ fun YourMixContent(
 fun TopBarSection(
     onProfileClick: () -> Unit,
     onSettingsClick: () -> Unit,
+    onDownloadsClick: () -> Unit = {},
     isDarkMode: Boolean,
     viewModel: HomeViewModel
 ) {
@@ -390,6 +395,7 @@ fun TopBarSection(
     val containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
     
     val userAvatar by viewModel.userAvatar.collectAsState()
+    val downloadingIds by viewModel.downloadingIds.collectAsState()
     
     Row(
         modifier = Modifier
@@ -429,21 +435,36 @@ fun TopBarSection(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(
-                onClick = { },
-                shapes = IconButtonDefaults.shapes(),
-                colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = containerColor,
-                    contentColor = iconColor
-                ),
-                modifier = Modifier.size(44.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = "More",
-                    modifier = Modifier.size(22.dp)
-                )
+            // Downloads Button with badge if downloading
+            Box {
+                IconButton(
+                    onClick = onDownloadsClick,
+                    shapes = IconButtonDefaults.shapes(),
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = containerColor,
+                        contentColor = iconColor
+                    ),
+                    modifier = Modifier.size(44.dp)
+                ) {
+                    Icon(
+                        imageVector = androidx.compose.material.icons.Icons.Rounded.Download,
+                        contentDescription = "Downloads",
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+                // Show badge if downloads are active
+                if (downloadingIds.isNotEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .align(Alignment.TopEnd)
+                            .offset(x = (-4).dp, y = 4.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary)
+                    )
+                }
             }
+            
             IconButton(
                 onClick = onSettingsClick,
                 shapes = IconButtonDefaults.shapes(),

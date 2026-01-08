@@ -18,6 +18,9 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Smartphone
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -70,6 +73,10 @@ fun PlayerSheetContent(
     val playWhenReady by viewModel.playWhenReady.collectAsState()
     val isFavorite by viewModel.isCurrentSongLiked.collectAsState()
     
+    // Download states
+    val downloadingIds by viewModel.downloadingIds.collectAsState()
+    val downloadedSongs by viewModel.downloadedSongs.collectAsState()
+    
     var showQueue by remember { mutableStateOf(false) }
 
     // Theme colors
@@ -99,6 +106,10 @@ fun PlayerSheetContent(
                     isLoadingMore = isLoadingMore,
                     onCollapse = onCollapse,
                     onBackToPlayer = { showQueue = false },
+                    // Download status pass-through
+                    isDownloaded = { id -> viewModel.isDownloaded(id) },
+                    isDownloading = { id -> viewModel.isDownloading(id) },
+                    isLocalOriginal = { song -> viewModel.isLocalOriginal(song) },
                     primaryColor = primaryColor,
                     onSurfaceColor = onSurfaceColor,
                     onSurfaceVariantColor = onSurfaceVariantColor
@@ -115,6 +126,12 @@ fun PlayerSheetContent(
                     repeatMode = repeatMode,
                     isFavorite = isFavorite,
                     onFavoriteToggle = { viewModel.toggleCurrentSongLike() },
+                    // Download actions
+                    onDownloadToggle = { currentSong?.let { viewModel.toggleDownload(it) } },
+                    isDownloaded = currentSong?.let { viewModel.isDownloaded(it.id) } ?: false,
+                    isDownloading = currentSong?.let { viewModel.isDownloading(it.id) } ?: false,
+                    isLocalOriginal = currentSong?.let { viewModel.isLocalOriginal(it) } ?: false,
+                    
                     onCollapse = onCollapse,
                     onShowQueue = { showQueue = true },
                     viewModel = viewModel,
@@ -154,6 +171,10 @@ private fun ExpressiveNowPlayingView(
     repeatMode: Int,
     isFavorite: Boolean,
     onFavoriteToggle: (Boolean) -> Unit,
+    onDownloadToggle: () -> Unit,
+    isDownloaded: Boolean,
+    isDownloading: Boolean,
+    isLocalOriginal: Boolean,
     onCollapse: () -> Unit,
     onShowQueue: () -> Unit,
     viewModel: PlayerViewModel,
@@ -509,11 +530,13 @@ private fun ExpressiveNowPlayingView(
             
             Spacer(modifier = Modifier.height(24.dp))
             
-            // 🌟 Favorite Toggle Button
+            // 🌟 Favorite & Download Buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                // Favorite Button
                 OutlinedIconToggleButton(
                     checked = isFavorite,
                     onCheckedChange = onFavoriteToggle,
@@ -524,6 +547,51 @@ private fun ExpressiveNowPlayingView(
                         contentDescription = "Favorite",
                         modifier = Modifier.size(28.dp)
                     )
+                }
+                
+                Spacer(modifier = Modifier.width(24.dp))
+                
+                // Download Button
+                if (isLocalOriginal) {
+                    // Local file indicator (non-interactive or just info)
+                     Surface(
+                        modifier = Modifier.size(56.dp),
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Rounded.Smartphone,
+                                contentDescription = "Local File",
+                                tint = onSurfaceVariantColor,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                } else {
+                    OutlinedIconButton(
+                        onClick = onDownloadToggle,
+                        modifier = Modifier.size(56.dp),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp, 
+                            if (isDownloaded || isDownloading) primaryColor else MaterialTheme.colorScheme.outline
+                        )
+                    ) {
+                        if (isDownloading) {
+                            CircularWavyProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = primaryColor
+                            )
+                        } else {
+                            Icon(
+                                imageVector = if (isDownloaded) Icons.Rounded.CheckCircle else Icons.Rounded.Download,
+                                contentDescription = if (isDownloaded) "Downloaded" else "Download",
+                                tint = if (isDownloaded) primaryColor else onSurfaceVariantColor,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -550,6 +618,9 @@ private fun ExpressiveQueueView(
     isLoadingMore: Boolean,
     onCollapse: () -> Unit,
     onBackToPlayer: () -> Unit,
+    isDownloaded: (String) -> Boolean,
+    isDownloading: (String) -> Boolean,
+    isLocalOriginal: (Song) -> Boolean,
     primaryColor: Color,
     onSurfaceColor: Color,
     onSurfaceVariantColor: Color
@@ -790,9 +861,9 @@ private fun ExpressiveQueueView(
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(24.dp),
-                            color = if (isCurrent) primaryContainerColor.copy(alpha = 0.15f) 
-                                   else Color.Transparent,
-                            shadowElevation = if (isCurrent) 2.dp else 0.dp,
+                            color = if (isCurrent) primaryContainerColor.copy(alpha = 0.3f) 
+                                   else MaterialTheme.colorScheme.surfaceContainerLow,
+                            shadowElevation = if (isCurrent) 4.dp else 0.dp,
                             onClick = { onSongClick(song) }
                         ) {
                             Row(
@@ -860,6 +931,33 @@ private fun ExpressiveQueueView(
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
+                                }
+                                
+                                Spacer(modifier = Modifier.width(8.dp))
+
+                                // Download Status Icon
+                                if (isDownloading(song.id)) {
+                                    CircularWavyProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        color = if (isCurrent) primaryColor else onSurfaceVariantColor
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                } else if (isDownloaded(song.id)) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.CheckCircle,
+                                        contentDescription = "Downloaded",
+                                        tint = if (isCurrent) primaryColor else onSurfaceVariantColor,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                } else if (isLocalOriginal(song)) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Smartphone,
+                                        contentDescription = "Local",
+                                        tint = if (isCurrent) primaryColor.copy(alpha=0.7f) else onSurfaceVariantColor.copy(alpha=0.7f),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
                                 }
                             }
                         }
