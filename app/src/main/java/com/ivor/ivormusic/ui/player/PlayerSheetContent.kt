@@ -860,10 +860,13 @@ private fun ExpressiveQueueView(
                         
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(24.dp),
-                            color = if (isCurrent) primaryContainerColor.copy(alpha = 0.3f) 
+                            shape = RoundedCornerShape(20.dp),
+                            color = if (isCurrent) primaryColor.copy(alpha = 0.12f) 
                                    else MaterialTheme.colorScheme.surfaceContainerLow,
-                            shadowElevation = if (isCurrent) 4.dp else 0.dp,
+                            border = if (isCurrent) androidx.compose.foundation.BorderStroke(
+                                1.5.dp, 
+                                primaryColor.copy(alpha = 0.3f)
+                            ) else null,
                             onClick = { onSongClick(song) }
                         ) {
                             Row(
