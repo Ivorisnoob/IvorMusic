@@ -79,6 +79,10 @@ fun PlayerSheetContent(
     
     var showQueue by remember { mutableStateOf(false) }
 
+    // 🌟 Stable shapes - prevents "square flash" on initial render
+    // IconButtonDefaults.shapes() already uses internal remember/caching
+    val stableIconButtonShapes = IconButtonDefaults.shapes()
+
     // Theme colors
     val surfaceColor = MaterialTheme.colorScheme.background
     val onSurfaceColor = MaterialTheme.colorScheme.onBackground
@@ -112,7 +116,8 @@ fun PlayerSheetContent(
                     isLocalOriginal = { song -> viewModel.isLocalOriginal(song) },
                     primaryColor = primaryColor,
                     onSurfaceColor = onSurfaceColor,
-                    onSurfaceVariantColor = onSurfaceVariantColor
+                    onSurfaceVariantColor = onSurfaceVariantColor,
+                    stableShapes = stableIconButtonShapes
                 )
             } else {
                 ExpressiveNowPlayingView(
@@ -140,7 +145,8 @@ fun PlayerSheetContent(
                     secondaryContainerColor = secondaryContainerColor,
                     tertiaryContainerColor = tertiaryContainerColor,
                     onSurfaceColor = onSurfaceColor,
-                    onSurfaceVariantColor = onSurfaceVariantColor
+                    onSurfaceVariantColor = onSurfaceVariantColor,
+                    stableShapes = stableIconButtonShapes
                 )
             }
         }
@@ -148,15 +154,7 @@ fun PlayerSheetContent(
 }
 
 /**
- * 🎵 Now Playing Screen with Expressive Design
- * 
- * Features:
- * - Full-bleed album art (75% height)
- * - Gradient blend at bottom
- * - Wavy progress indicator
- * - Huge morphing play button
- * - Expressive skip buttons with shape morphing
- * - IconToggleButton for favorite with shape morphing
+ * I do not fucking ned that many slop comments thank you
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -183,7 +181,8 @@ private fun ExpressiveNowPlayingView(
     secondaryContainerColor: Color,
     tertiaryContainerColor: Color,
     onSurfaceColor: Color,
-    onSurfaceVariantColor: Color
+    onSurfaceVariantColor: Color,
+    stableShapes: IconButtonShapes
 ) {
     Box(
         modifier = Modifier
@@ -199,10 +198,10 @@ private fun ExpressiveNowPlayingView(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Collapse button with shape morphing
+            // Collapse button - static shape (no morphing needed for utility buttons)
             FilledIconButton(
                 onClick = onCollapse,
-                shapes = IconButtonDefaults.shapes(),
+                shape = CircleShape,
                 colors = IconButtonDefaults.filledIconButtonColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     contentColor = MaterialTheme.colorScheme.onSurface
@@ -236,10 +235,10 @@ private fun ExpressiveNowPlayingView(
                 }
             }
             
-            // Queue button with shape morphing
+            // Queue button - static shape (no morphing needed for utility buttons)
             FilledIconButton(
                 onClick = onShowQueue,
-                shapes = IconButtonDefaults.shapes(),
+                shape = CircleShape,
                 colors = IconButtonDefaults.filledIconButtonColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     contentColor = MaterialTheme.colorScheme.onSurface
@@ -438,7 +437,7 @@ private fun ExpressiveNowPlayingView(
                 val prevInteraction = remember { MutableInteractionSource() }
                 FilledTonalIconButton(
                     onClick = { viewModel.skipToPrevious() },
-                    shapes = IconButtonDefaults.shapes(),
+                    shapes = stableShapes,
                     interactionSource = prevInteraction,
                     modifier = Modifier
                         .weight(1f)
@@ -456,7 +455,7 @@ private fun ExpressiveNowPlayingView(
                 val playInteraction = remember { MutableInteractionSource() }
                 FilledIconButton(
                     onClick = { viewModel.togglePlayPause() },
-                    shapes = IconButtonDefaults.shapes(),
+                    shapes = stableShapes,
                     interactionSource = playInteraction,
                     colors = IconButtonDefaults.filledIconButtonColors(
                         containerColor = primaryContainerColor,
@@ -492,7 +491,7 @@ private fun ExpressiveNowPlayingView(
                 val nextInteraction = remember { MutableInteractionSource() }
                 FilledTonalIconButton(
                     onClick = { viewModel.skipToNext() },
-                    shapes = IconButtonDefaults.shapes(),
+                    shapes = stableShapes,
                     interactionSource = nextInteraction,
                     modifier = Modifier
                         .weight(1f)
@@ -623,7 +622,8 @@ private fun ExpressiveQueueView(
     isLocalOriginal: (Song) -> Boolean,
     primaryColor: Color,
     onSurfaceColor: Color,
-    onSurfaceVariantColor: Color
+    onSurfaceVariantColor: Color,
+    stableShapes: IconButtonShapes
 ) {
     val primaryContainerColor = MaterialTheme.colorScheme.primaryContainer
     
@@ -641,10 +641,10 @@ private fun ExpressiveQueueView(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Collapse button with shape morphing
+            // Collapse button - static shape
             FilledIconButton(
                 onClick = onCollapse,
-                shapes = IconButtonDefaults.shapes(),
+                shape = CircleShape,
                 colors = IconButtonDefaults.filledIconButtonColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     contentColor = MaterialTheme.colorScheme.onSurface
@@ -678,10 +678,10 @@ private fun ExpressiveQueueView(
                 }
             }
             
-            // Back to player button with shape morphing
+            // Back to player button - static shape
             FilledIconButton(
                 onClick = onBackToPlayer,
-                shapes = IconButtonDefaults.shapes(),
+                shape = CircleShape,
                 colors = IconButtonDefaults.filledIconButtonColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     contentColor = MaterialTheme.colorScheme.onSurface
