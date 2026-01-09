@@ -154,7 +154,7 @@ fun SearchScreen(
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding() + 20.dp)
+            contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding() + 140.dp)
         ) {
             // ========== HERO HEADER WITH SEARCH ==========
             item {

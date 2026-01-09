@@ -139,7 +139,7 @@ fun AlbumScreen(
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 120.dp)
+            contentPadding = PaddingValues(bottom = 160.dp)
         ) {
             // ========== HERO HEADER ==========
             item {

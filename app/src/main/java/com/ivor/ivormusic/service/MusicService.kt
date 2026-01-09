@@ -147,39 +147,23 @@ class MusicService : MediaLibraryService() {
                 mediaItems: MutableList<MediaItem>
             ): ListenableFuture<MutableList<MediaItem>> {
                 return serviceScope.future {
-                    // LAZY RESOLUTION: Only resolve first 2 songs immediately
-                    // Rest will be resolved in background as playback progresses
+                    // OPTIMIZATION: If adding a single item (likely current song), resolve immediate for fast playback.
+                    // If adding multiple (queue), return immediately so they are added to Player/Notification instantly.
+                    // Background prefetch will handle URL resolution.
                     
-                    val immediateCount = minOf(2, mediaItems.size)
-                    Log.d(TAG, "Adding ${mediaItems.size} items, resolving first $immediateCount immediately")
-                    
-                    val resolvedItems = mediaItems.mapIndexed { index, item ->
-                        async(Dispatchers.IO) {
-                            val videoId = item.mediaId
-                            
-                            // Check if already has URI (local songs)
-                            if (item.localConfiguration?.uri != null) {
-                                return@async item
-                            }
-                            
-                            // Check cache first
-                            urlCache[videoId]?.let { cachedUrl ->
-                                Log.d(TAG, "Cache hit for $videoId")
-                                return@async item.buildUpon()
-                                    .setUri(android.net.Uri.parse(cachedUrl))
-                                    .build()
-                            }
-                            
-                            // Only resolve immediately for first N songs
-                            if (index < immediateCount) {
-                                resolveStreamUrl(item, videoId)
-                            } else {
-                                // Return without URI - will be resolved later
-                                item
-                            }
+                    if (mediaItems.size == 1) {
+                        val item = mediaItems[0]
+                        val videoId = item.mediaId
+                        if (item.localConfiguration?.uri == null) {
+                            val resolved = resolveStreamUrl(item, videoId)
+                            mutableListOf(resolved)
+                        } else {
+                            mediaItems
                         }
+                    } else {
+                        // Pass through faster. Prefetcher will handle urls.
+                        mediaItems
                     }
-                    resolvedItems.awaitAll().toMutableList()
                 }
             }
         })
