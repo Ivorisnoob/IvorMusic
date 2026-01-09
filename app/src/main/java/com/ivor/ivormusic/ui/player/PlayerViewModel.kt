@@ -155,19 +155,15 @@ class PlayerViewModel(private val context: Context) : ViewModel() {
                 controller?.let {
                     val currentPos = it.currentPosition
                     
-                    // Update progress if playing
+                    // Update progress always (to reflect seeking while paused)
+                    _progress.value = currentPos
+                    
+                    // Update buffering sanity check
                     if (it.isPlaying) {
-                        _progress.value = currentPos
-                        
                         // Failsafe: if we are playing and updating progress, we are NOT buffering
                         if (_isBuffering.value) {
                              _isBuffering.value = false
                         }
-                    } else if (currentPos > lastPosition && currentPos > 0) {
-                        // Even if isPlaying says false, if position advanced, we ARE playing
-                        _isPlaying.value = true
-                        _isBuffering.value = false
-                        _progress.value = currentPos
                     }
                     
                     lastPosition = currentPos
