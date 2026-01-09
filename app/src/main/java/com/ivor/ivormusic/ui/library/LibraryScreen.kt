@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -115,10 +116,8 @@ private fun getSegmentedShape(index: Int, count: Int, cornerSize: androidx.compo
  * - YouTube playlists and liked songs integration
  * - Premium card designs with beautiful rounded corners
  * - Category tabs
- * - Quick access cards
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
-
 @Composable
 fun LibraryScreen(
     songs: List<Song>,
@@ -126,6 +125,7 @@ fun LibraryScreen(
     onPlayQueue: (List<Song>, Song?) -> Unit,
     onPlaylistClick: (com.ivor.ivormusic.data.PlaylistDisplayItem) -> Unit = {},
     onArtistClick: (String) -> Unit = {},
+    onAlbumClick: (String, List<Song>) -> Unit = { _, _ -> },
     contentPadding: PaddingValues,
     viewModel: HomeViewModel,
     isDarkMode: Boolean,
@@ -133,28 +133,20 @@ fun LibraryScreen(
 ) {
     // Theme colors from MaterialTheme
     val backgroundColor = MaterialTheme.colorScheme.background
-    val surfaceColor = MaterialTheme.colorScheme.surface
-    val cardColor = MaterialTheme.colorScheme.surfaceContainer
     val textColor = MaterialTheme.colorScheme.onBackground
     val secondaryTextColor = MaterialTheme.colorScheme.onSurfaceVariant
     val accentColor = MaterialTheme.colorScheme.primary
+    val cardColor = MaterialTheme.colorScheme.surfaceContainer
     val chipBgColor = MaterialTheme.colorScheme.surfaceContainerHigh
     
-    // YouTube connection status
-    val isYouTubeConnected by viewModel.isYouTubeConnected.collectAsState()
-    
-    // YouTube playlists and liked songs from ViewModel
+    // Data from ViewModel
     val userPlaylists by viewModel.userPlaylists.collectAsState()
     val likedSongs by viewModel.likedSongs.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     
-    // Download states
-    val downloadingIds by viewModel.downloadingIds.collectAsState()
-    val downloadedSongs by viewModel.downloadedSongs.collectAsState()
-    
     // Tab state
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("All", "Songs", "Playlists", "Artists", "Albums")
+    val tabs = listOf("All", "Playlists", "Artists", "Albums")
     
     Column(
         modifier = modifier
@@ -207,7 +199,7 @@ fun LibraryScreen(
         
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Main Content with PullToRefresh
+        // Main Content
         PullToRefreshBox(
             isRefreshing = isLoading,
             onRefresh = { viewModel.refresh() },
@@ -218,106 +210,161 @@ fun LibraryScreen(
                 contentPadding = PaddingValues(
                     start = 20.dp,
                     end = 20.dp,
-                    bottom = contentPadding.calculateBottomPadding()
-                )
+                    bottom = contentPadding.calculateBottomPadding() + 20.dp
+                ),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-            when (tabs[selectedTab]) {
-                "All" -> {
-                    if (isLoading && likedSongs.isEmpty()) {
-                        item {
-                            Box(
-                                modifier = Modifier.fillMaxWidth().height(200.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                LoadingIndicator(
-                                    modifier = Modifier.size(48.dp),
-                                    color = accentColor
-                                )
-                            }
-                        }
-                    } else {
-                        // Liked Songs Section (Local + YouTube)
+                when (tabs[selectedTab]) {
+                    "All" -> {
+                        // 1. Liked Songs Highlight
                         if (likedSongs.isNotEmpty()) {
                             item {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 16.dp)
+                                        .clip(RoundedCornerShape(28.dp))
+                                        .clickable { onPlayQueue(likedSongs, null) },
+                                    shape = RoundedCornerShape(28.dp),
+                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
                                 ) {
-                                    Column {
-                                        Text(
-                                            "Liked Songs",
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            color = textColor
-                                        )
-                                        Text(
-                                            "${likedSongs.size} songs",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = secondaryTextColor
-                                        )
-                                    }
-                                    FilledTonalButton(
-                                        onClick = { onPlayQueue(likedSongs, null) },
-                                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                                        colors = ButtonDefaults.filledTonalButtonColors(
-                                            containerColor = Color(0xFFFF0000).copy(alpha = 0.1f),
-                                            contentColor = Color(0xFFFF0000)
-                                        )
+                                    Row(
+                                        modifier = Modifier.padding(16.dp),
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Icon(
-                                            Icons.Rounded.PlayArrow,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            "Play All",
-                                            style = MaterialTheme.typography.labelLarge,
-                                            fontWeight = FontWeight.Bold
-                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .size(64.dp)
+                                                .clip(RoundedCornerShape(16.dp))
+                                                .background(
+                                                    Brush.linearGradient(
+                                                        listOf(Color(0xFFE91E63), Color(0xFFFF5252))
+                                                    )
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                Icons.Rounded.Favorite,
+                                                contentDescription = null,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(32.dp)
+                                            )
+                                        }
+                                        
+                                        Spacer(modifier = Modifier.width(16.dp))
+                                        
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                "Liked Songs",
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = textColor
+                                            )
+                                            Text(
+                                                "${likedSongs.size} songs • Auto-playlist",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = secondaryTextColor
+                                            )
+                                        }
+                                        
+                                        IconButton(
+                                            onClick = { onPlayQueue(likedSongs, null) },
+                                            colors = androidx.compose.material3.IconButtonDefaults.filledIconButtonColors(
+                                                containerColor = accentColor
+                                            )
+                                        ) {
+                                            Icon(
+                                                Icons.Rounded.PlayArrow,
+                                                contentDescription = "Play",
+                                                tint = Color.White
+                                            )
+                                        }
                                     }
                                 }
-                                Spacer(modifier = Modifier.height(16.dp))
+                            }
+                        }
+                        
+                        // 2. Playlists Horizontal Scroller (if any)
+                        if (userPlaylists.isNotEmpty()) {
+                            item {
+                                Text(
+                                    "Your Playlists",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = textColor,
+                                    modifier = Modifier.padding(bottom = 12.dp, top = 8.dp)
+                                )
+                                
+                                LazyRow(
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    items(userPlaylists) { playlist ->
+                                        Column(
+                                            modifier = Modifier
+                                                .width(140.dp)
+                                                .clip(RoundedCornerShape(16.dp))
+                                                .clickable { onPlaylistClick(playlist) }
+                                        ) {
+                                            Surface(
+                                                modifier = Modifier
+                                                    .size(140.dp)
+                                                    .clip(RoundedCornerShape(16.dp)),
+                                                color = cardColor,
+                                                shape = RoundedCornerShape(16.dp)
+                                            ) {
+                                                if (playlist.thumbnailUrl != null) {
+                                                    AsyncImage(
+                                                        model = playlist.thumbnailUrl,
+                                                        contentDescription = null,
+                                                        contentScale = ContentScale.Crop,
+                                                        modifier = Modifier.fillMaxSize()
+                                                    )
+                                                } else {
+                                                    Box(contentAlignment = Alignment.Center) {
+                                                        Icon(
+                                                            Icons.Rounded.PlaylistPlay,
+                                                            contentDescription = null,
+                                                            tint = secondaryTextColor,
+                                                            modifier = Modifier.size(48.dp)
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Text(
+                                                playlist.name ?: "Untitled",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                color = textColor
+                                            )
+                                            Text(
+                                                "${playlist.itemCount} songs",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = secondaryTextColor
+                                            )
+                                        }
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(24.dp))
+                            }
+                        }
+                        
+                        // 3. Local Songs (Recently Added / All)
+                        if (songs.isNotEmpty()) {
+                            item {
+                                Text(
+                                    "Your Tracks",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = textColor,
+                                    modifier = Modifier.padding(bottom = 12.dp)
+                                )
                             }
                             
-                            itemsIndexed(likedSongs.take(5)) { index, song ->
-                                LibrarySongCard(
-                                    song = song,
-                                    onClick = { onPlayQueue(likedSongs, song) },
-                                    cardColor = cardColor,
-                                    textColor = textColor,
-                                    secondaryTextColor = secondaryTextColor,
-                                    accentColor = accentColor,
-                                    isYouTube = true,
-                                    shape = getSegmentedShape(index, likedSongs.take(5).size),
-                                    onDownloadClick = { viewModel.toggleDownload(song) },
-                                    isDownloaded = viewModel.isDownloaded(song.id),
-                                    isDownloading = viewModel.isDownloading(song.id),
-                                    isLocalOriginal = viewModel.isLocalOriginal(song)
-                                )
-                                if (index < likedSongs.take(5).size - 1) {
-                                    HorizontalDivider(
-                                        modifier = Modifier.padding(horizontal = 24.dp),
-                                        color = textColor.copy(alpha = 0.08f)
-                                    )
-                                }
-                            }
-                        }
-
-                        // Local Library Section
-                        item {
-                            Spacer(modifier = Modifier.height(24.dp))
-                            Text(
-                                "Local Library",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = textColor
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                        }
-                        if (songs.isNotEmpty()) {
-                            itemsIndexed(songs.take(10)) { index, song ->
+                            itemsIndexed(songs.take(20)) { index, song -> 
                                 LibrarySongCard(
                                     song = song,
                                     onClick = { onPlayQueue(songs, song) },
@@ -325,161 +372,61 @@ fun LibraryScreen(
                                     textColor = textColor,
                                     secondaryTextColor = secondaryTextColor,
                                     accentColor = accentColor,
-                                    shape = getSegmentedShape(index, songs.take(10).size),
-                                    // Local library items are typically local originals, but check anyway
-                                    isLocalOriginal = viewModel.isLocalOriginal(song)
+                                    shape = getSegmentedShape(index, songs.take(20).size),
+                                    isLocalOriginal = true
                                 )
-                                if (index < songs.take(10).size - 1) {
+                                if (index < songs.take(20).size - 1) {
                                     HorizontalDivider(
                                         modifier = Modifier.padding(horizontal = 24.dp),
                                         color = textColor.copy(alpha = 0.08f)
                                     )
                                 }
                             }
-                        } else {
-                            item {
-                                 Text("No local songs found", color = secondaryTextColor)
-                            }
                         }
                     }
-                }
-                
-                "Songs" -> {
-                    // Show all songs (YouTube Liked + Local)
-                    val allSongs = if (isYouTubeConnected) likedSongs + songs else songs
-                    if (allSongs.isEmpty()) {
-                        item {
-                            EmptyStateCard(
-                                title = "No songs found",
-                                subtitle = "Add music or connect YouTube Music",
-                                icon = Icons.Rounded.MusicNote,
-                                cardColor = cardColor,
-                                textColor = textColor,
-                                secondaryTextColor = secondaryTextColor
-                            )
-                        }
-                    } else {
-                        itemsIndexed(allSongs) { index, song ->
-                            LibrarySongCard(
-                                song = song,
-                                onClick = { onPlayQueue(allSongs, song) },
-                                cardColor = cardColor,
-                                textColor = textColor,
-                                    secondaryTextColor = secondaryTextColor,
-                                    accentColor = accentColor,
-                                    isYouTube = song.source == com.ivor.ivormusic.data.SongSource.YOUTUBE,
-                                    shape = getSegmentedShape(index, allSongs.size),
-                                    onDownloadClick = { viewModel.toggleDownload(song) },
-                                    isDownloaded = viewModel.isDownloaded(song.id),
-                                    isDownloading = viewModel.isDownloading(song.id),
-                                    isLocalOriginal = viewModel.isLocalOriginal(song)
-                                )
-                            if (index < allSongs.size - 1) {
-                                HorizontalDivider(
-                                    modifier = Modifier.padding(horizontal = 24.dp),
-                                    color = textColor.copy(alpha = 0.08f)
-                                )
-                            }
-                        }
-                    }
-                }
-                
-                "Playlists" -> {
-                    val hasLikedSongs = likedSongs.isNotEmpty()
-                    val totalItems = (if (hasLikedSongs) 1 else 0) + userPlaylists.size
                     
-                    if (totalItems == 0) {
-                        item {
-                            EmptyStateCard(
-                                title = "No Playlists Found",
-                                subtitle = if (isYouTubeConnected) "Could not load library playlists" else "Connect YouTube to see your playlists",
-                                icon = Icons.Rounded.PlaylistPlay,
-                                cardColor = cardColor,
-                                textColor = textColor,
-                                secondaryTextColor = secondaryTextColor
-                            )
-                        }
-                    } else {
-                        // 1. Liked Songs Playlist Card (if exists)
-                        if (hasLikedSongs) {
+                    "Playlists" -> {
+                        // Liked Songs
+                        if (likedSongs.isNotEmpty()) {
                             item {
-                                val shape = getSegmentedShape(0, totalItems)
                                 Surface(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clip(shape)
+                                        .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
                                         .clickable { onPlayQueue(likedSongs, null) },
-                                    shape = shape,
-                                    color = cardColor,
-                                    tonalElevation = 1.dp
+                                    shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                                    color = cardColor
                                 ) {
                                     ListItem(
-                                        headlineContent = {
-                                            Text(
-                                                text = "Liked Songs",
-                                                style = MaterialTheme.typography.bodyLarge,
-                                                fontWeight = FontWeight.Bold,
-                                                color = textColor
-                                            )
-                                        },
-                                        supportingContent = {
-                                            Text(
-                                                text = "${likedSongs.size} songs • Auto-playlist",
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = secondaryTextColor
-                                            )
-                                        },
+                                        headlineContent = { Text("Liked Songs", fontWeight = FontWeight.Bold, color = textColor) },
+                                        supportingContent = { Text("${likedSongs.size} songs", color = secondaryTextColor) },
                                         leadingContent = {
                                             Box(
                                                 modifier = Modifier
                                                     .size(56.dp)
-                                                    .clip(RoundedCornerShape(14.dp))
-                                                    .background(
-                                                        Brush.linearGradient(
-                                                            listOf(
-                                                                Color(0xFFE91E63),
-                                                                Color(0xFFFF5252)
-                                                            )
-                                                        )
-                                                    ),
+                                                    .clip(RoundedCornerShape(12.dp))
+                                                    .background(Brush.linearGradient(listOf(Color(0xFFE91E63), Color(0xFFFF5252)))),
                                                 contentAlignment = Alignment.Center
                                             ) {
-                                                Icon(
-                                                    Icons.Rounded.Favorite,
-                                                    contentDescription = null,
-                                                    tint = Color.White,
-                                                    modifier = Modifier.size(24.dp)
-                                                )
+                                                Icon(Icons.Rounded.Favorite, null, tint = Color.White)
                                             }
                                         },
-                                        trailingContent = {
-                                            Icon(
-                                                Icons.Rounded.PlayArrow,
-                                                contentDescription = null,
-                                                tint = accentColor,
-                                                modifier = Modifier.size(24.dp)
-                                            )
-                                        },
-                                        colors = ListItemDefaults.colors(
-                                            containerColor = Color.Transparent
-                                        )
+                                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                                     )
                                 }
                                 if (userPlaylists.isNotEmpty()) {
-                                    HorizontalDivider(
-                                        modifier = Modifier.padding(horizontal = 24.dp),
-                                        color = textColor.copy(alpha = 0.08f)
-                                    )
+                                    HorizontalDivider(modifier = Modifier.padding(horizontal = 24.dp), color = textColor.copy(alpha = 0.08f))
                                 }
                             }
                         }
-
-                        // 2. User Playlists
+                        
+                        // User Playlists
                         itemsIndexed(userPlaylists) { index, playlist ->
-                            // Custom Playlist Card
-                            // Adjust index if we have Liked Songs
-                            val displayIndex = index + (if (hasLikedSongs) 1 else 0)
-                            val shape = getSegmentedShape(displayIndex, totalItems)
+                            val shape = if (likedSongs.isEmpty()) {
+                                getSegmentedShape(index, userPlaylists.size)
+                            } else {
+                                if (index == userPlaylists.lastIndex) RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp) else RectangleShape
+                            }
                             
                             Surface(
                                 modifier = Modifier
@@ -487,232 +434,163 @@ fun LibraryScreen(
                                     .clip(shape)
                                     .clickable { onPlaylistClick(playlist) },
                                 shape = shape,
-                                color = cardColor,
-                                tonalElevation = 1.dp
+                                color = cardColor
                             ) {
                                 ListItem(
-                                    headlineContent = {
-                                        Text(
-                                            text = playlist.name ?: "Unknown Playlist",
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            fontWeight = FontWeight.Bold,
-                                            color = textColor
-                                        )
-                                    },
-                                    supportingContent = {
-                                        Text(
-                                            text = playlist.uploaderName ?: "Unknown Author",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = secondaryTextColor
-                                        )
-                                    },
+                                    headlineContent = { Text(playlist.name ?: "Unknown", fontWeight = FontWeight.Bold, color = textColor) },
+                                    supportingContent = { Text("${playlist.itemCount} songs", color = secondaryTextColor) },
                                     leadingContent = {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(56.dp)
-                                                .clip(RoundedCornerShape(14.dp))
-                                                .background(Color.Gray.copy(alpha = 0.2f)),
-                                            contentAlignment = Alignment.Center
+                                        Surface(
+                                            modifier = Modifier.size(56.dp),
+                                            shape = RoundedCornerShape(12.dp),
+                                            color = MaterialTheme.colorScheme.surfaceVariant
                                         ) {
                                             if (playlist.thumbnailUrl != null) {
-                                                 AsyncImage(
+                                                AsyncImage(
                                                     model = playlist.thumbnailUrl,
-                                                    contentDescription = playlist.name,
-                                                    modifier = Modifier.fillMaxSize(),
-                                                    contentScale = ContentScale.Crop
+                                                    contentDescription = null,
+                                                    contentScale = ContentScale.Crop,
+                                                    modifier = Modifier.fillMaxSize()
                                                 )
                                             } else {
-                                                Icon(
-                                                    Icons.Rounded.PlaylistPlay,
-                                                    contentDescription = null,
-                                                    tint = Color.White
-                                                )
+                                                Box(contentAlignment = Alignment.Center) {
+                                                    Icon(Icons.Rounded.PlaylistPlay, null, tint = secondaryTextColor)
+                                                }
                                             }
                                         }
                                     },
-                                    trailingContent = {
-                                        Icon(
-                                            Icons.Rounded.PlayArrow,
-                                            contentDescription = null,
-                                            tint = accentColor,
-                                            modifier = Modifier.size(24.dp)
-                                        )
-                                    },
-                                    colors = ListItemDefaults.colors(
-                                        containerColor = Color.Transparent
-                                    )
+                                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                                 )
                             }
-                            if (index < userPlaylists.size - 1) {
-                                HorizontalDivider(
-                                    modifier = Modifier.padding(horizontal = 24.dp),
-                                    color = textColor.copy(alpha = 0.08f)
+                            if (index < userPlaylists.lastIndex) {
+                                HorizontalDivider(modifier = Modifier.padding(horizontal = 24.dp), color = textColor.copy(alpha = 0.08f))
+                            }
+                        }
+                        
+                        if (likedSongs.isEmpty() && userPlaylists.isEmpty()) {
+                            item {
+                                EmptyStateCard(
+                                    title = "No Playlists",
+                                    subtitle = "Create playlists or connect YouTube Music",
+                                    icon = Icons.Rounded.PlaylistPlay,
+                                    cardColor = cardColor,
+                                    textColor = textColor,
+                                    secondaryTextColor = secondaryTextColor
                                 )
                             }
                         }
                     }
-                }
-                
-                "Artists" -> {
-                    val artists = songs.groupBy { it.artist }.keys.toList().sorted()
-                    itemsIndexed(artists) { index, artist ->
-                        val shape = getSegmentedShape(index, artists.size)
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(shape)
-                                .clickable { onArtistClick(artist) },
-                            shape = shape,
-                            color = cardColor,
-                            tonalElevation = 1.dp
-                        ) {
-                            ListItem(
-                                headlineContent = {
-                                    Text(
-                                        text = artist,
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.Bold,
-                                        color = textColor
-                                    )
-                                },
-                                leadingContent = {
-                                    Surface(
-                                        modifier = Modifier.size(48.dp),
-                                        shape = CircleShape,
-                                        color = accentColor.copy(alpha = 0.1f)
-                                    ) {
-                                        Box(contentAlignment = Alignment.Center) {
-                                            Icon(
-                                                Icons.Rounded.MusicNote, // Use MusicNote as generic artist icon
-                                                contentDescription = null,
-                                                tint = accentColor,
-                                                modifier = Modifier.size(24.dp)
-                                            )
-                                        }
-                                    }
-                                },
-                                colors = ListItemDefaults.colors(
-                                    containerColor = Color.Transparent
+                    
+                    "Artists" -> {
+                        val artists = songs.groupBy { it.artist }.keys.toList().sorted()
+                        if (artists.isEmpty()) {
+                            item {
+                                EmptyStateCard(
+                                    title = "No Artists",
+                                    subtitle = "Add music to your library",
+                                    icon = Icons.Rounded.MusicNote,
+                                    cardColor = cardColor,
+                                    textColor = textColor,
+                                    secondaryTextColor = secondaryTextColor
                                 )
-                            )
-                        }
-                        if (index < artists.size - 1) {
-                            HorizontalDivider(
-                                modifier = Modifier.padding(horizontal = 24.dp),
-                                color = textColor.copy(alpha = 0.08f)
-                            )
+                            }
+                        } else {
+                            itemsIndexed(artists) { index, artist ->
+                                val shape = getSegmentedShape(index, artists.size)
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth().clip(shape).clickable { onArtistClick(artist) },
+                                    shape = shape,
+                                    color = cardColor
+                                ) {
+                                    ListItem(
+                                        headlineContent = { Text(artist, fontWeight = FontWeight.Bold, color = textColor) },
+                                        leadingContent = {
+                                            Surface(
+                                                modifier = Modifier.size(48.dp),
+                                                shape = CircleShape,
+                                                color = accentColor.copy(alpha = 0.1f)
+                                            ) {
+                                                Box(contentAlignment = Alignment.Center) {
+                                                    Icon(Icons.Rounded.MusicNote, null, tint = accentColor)
+                                                }
+                                            }
+                                        },
+                                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                                    )
+                                }
+                                if (index < artists.lastIndex) {
+                                    HorizontalDivider(modifier = Modifier.padding(horizontal = 24.dp), color = textColor.copy(alpha = 0.08f))
+                                }
+                            }
                         }
                     }
-                }
-                
-                "Albums" -> {
-                    val albums = songs.groupBy { it.album }.keys.toList().sorted()
-                    itemsIndexed(albums) { index, album ->
-                        val shape = getSegmentedShape(index, albums.size)
-                         Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(shape)
-                                .clickable { /* Handle album click */ },
-                            shape = shape,
-                            color = cardColor,
-                            tonalElevation = 1.dp
-                        ) {
-                            ListItem(
-                                headlineContent = {
-                                    Text(
-                                        text = album,
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.Bold,
-                                        color = textColor
-                                    )
-                                },
-                                leadingContent = {
-                                    Surface(
-                                        modifier = Modifier.size(48.dp),
-                                        shape = RoundedCornerShape(12.dp),
-                                        color = accentColor.copy(alpha = 0.1f)
-                                    ) {
-                                        Box(contentAlignment = Alignment.Center) {
-                                            Icon(
-                                                Icons.Rounded.Album,
-                                                contentDescription = null,
-                                                tint = accentColor,
-                                                modifier = Modifier.size(24.dp)
-                                            )
-                                        }
-                                    }
-                                },
-                                colors = ListItemDefaults.colors(
-                                    containerColor = Color.Transparent
+                    
+                    "Albums" -> {
+                        val albums = songs.groupBy { it.album }.keys.toList().sorted()
+                        if (albums.isEmpty()) {
+                            item {
+                                EmptyStateCard(
+                                    title = "No Albums",
+                                    subtitle = "Add music to your library",
+                                    icon = Icons.Rounded.Album,
+                                    cardColor = cardColor,
+                                    textColor = textColor,
+                                    secondaryTextColor = secondaryTextColor
                                 )
-                            )
-                        }
-                        if (index < albums.size - 1) {
-                            HorizontalDivider(
-                                modifier = Modifier.padding(horizontal = 24.dp),
-                                color = textColor.copy(alpha = 0.08f)
-                            )
+                            }
+                        } else {
+                            itemsIndexed(albums) { index, album ->
+                                val shape = getSegmentedShape(index, albums.size)
+                                val albumSongs = songs.filter { it.album == album }
+                                val artist = albumSongs.firstOrNull()?.artist ?: "Unknown Artist"
+                                
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth().clip(shape).clickable { onAlbumClick(album, albumSongs) },
+                                    shape = shape,
+                                    color = cardColor
+                                ) {
+                                    ListItem(
+                                        headlineContent = { Text(album, fontWeight = FontWeight.Bold, color = textColor) },
+                                        supportingContent = { Text(artist, color = secondaryTextColor) },
+                                        leadingContent = {
+                                            Surface(
+                                                modifier = Modifier.size(48.dp),
+                                                shape = RoundedCornerShape(12.dp),
+                                                color = accentColor.copy(alpha = 0.1f)
+                                            ) {
+                                                // Try to get art from first song
+                                                val artUri = albumSongs.firstOrNull()?.albumArtUri
+                                                if (artUri != null) {
+                                                    AsyncImage(
+                                                        model = artUri,
+                                                        contentDescription = null,
+                                                        contentScale = ContentScale.Crop,
+                                                        modifier = Modifier.fillMaxSize()
+                                                    )
+                                                } else {
+                                                    Box(contentAlignment = Alignment.Center) {
+                                                        Icon(Icons.Rounded.Album, null, tint = accentColor)
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                                    )
+                                }
+                                if (index < albums.lastIndex) {
+                                    HorizontalDivider(modifier = Modifier.padding(horizontal = 24.dp), color = textColor.copy(alpha = 0.08f))
+                                }
+                            }
                         }
                     }
-                }
-            }
-
-            item { Spacer(modifier = Modifier.height(32.dp)) }
-        }
-    }
-}
-}
-
-@Composable
-private fun QuickAccessCard(
-    title: String,
-    subtitle: String,
-    icon: ImageVector,
-    gradientColors: List<Color>,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier
-            .height(100.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(20.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Brush.linearGradient(gradientColors))
-                .padding(16.dp)
-        ) {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
-                Icon(
-                    icon,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(28.dp)
-                )
-                Column {
-                    Text(
-                        title,
-                        color = Color.White,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        subtitle,
-                        color = Color.White.copy(alpha = 0.8f),
-                        style = MaterialTheme.typography.bodySmall
-                    )
                 }
             }
         }
     }
 }
+
+
+
 
 @Composable
 private fun LibrarySongCard(
@@ -1295,6 +1173,9 @@ fun LibraryContent(
                     onPlayQueue = onPlayQueue,
                     onPlaylistClick = { viewedPlaylist = it },
                     onArtistClick = { viewedArtist = it },
+                    onAlbumClick = { albumName, albumSongs -> 
+                        viewedAlbum = albumName to albumSongs 
+                    },
                     contentPadding = contentPadding,
                     viewModel = viewModel,
                     isDarkMode = isDarkMode

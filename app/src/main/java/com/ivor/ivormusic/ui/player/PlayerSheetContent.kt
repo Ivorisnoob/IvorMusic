@@ -549,7 +549,8 @@ private fun ExpressiveNowPlayingView(
                         .fillMaxHeight()
                         .animateWidth(playInteraction)
                 ) {
-                    if (isBuffering && playWhenReady) {
+                    // FIX: Only show loading if we are NOT playing. If audio is playing, always show Pause.
+                    if (isBuffering && playWhenReady && !isPlaying) {
                         // 🌟 Organic morphing loading with MaterialShapes
                         LoadingIndicator(
                             modifier = Modifier.size(40.dp),

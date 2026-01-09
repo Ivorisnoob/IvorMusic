@@ -191,18 +191,37 @@ class MusicService : MediaLibraryService() {
      * Resolve stream URL for a media item
      */
     private suspend fun resolveStreamUrl(item: MediaItem, videoId: String): MediaItem {
-        // Mark as resolving
-        if (resolvingItems.putIfAbsent(videoId, true) == true) {
-            // Already being resolved by another coroutine, wait and check cache
-            kotlinx.coroutines.delay(100)
-            urlCache[videoId]?.let { cachedUrl ->
-                return item.buildUpon()
-                    .setUri(android.net.Uri.parse(cachedUrl))
-                    .build()
-            }
+        // 1. Check cache first
+        urlCache[videoId]?.let { cachedUrl ->
+            Log.d(TAG, "Cache hit for $videoId")
+            return item.buildUpon()
+                .setUri(android.net.Uri.parse(cachedUrl))
+                .build()
         }
-        
-        return try {
+
+        // 2. Concurrency handling
+        // If putIfAbsent returns true, it means the key WAS associated with true (already resolving)
+        if (resolvingItems.putIfAbsent(videoId, true) == true) {
+            Log.d(TAG, "Already resolving $videoId, waiting...")
+            // Already being resolved by another coroutine (e.g. prefetch). Wait for it.
+            var attempts = 0
+            // Wait up to 5 seconds
+            while (attempts < 50) { 
+                kotlinx.coroutines.delay(100)
+                urlCache[videoId]?.let { cachedUrl ->
+                    Log.d(TAG, "Waited and found URL for $videoId")
+                    return item.buildUpon()
+                        .setUri(android.net.Uri.parse(cachedUrl))
+                        .build()
+                }
+                attempts++
+            }
+            Log.w(TAG, "Waited for $videoId resolution but timed out")
+            return item // Return unresolved if timed out waiting
+        }
+
+        // 3. Perform Resolution (We own the lock)
+        try {
             val streamUrl = withTimeoutOrNull(STREAM_TIMEOUT_MS) {
                 youtubeRepository.getStreamUrl(videoId)
             }
@@ -210,16 +229,16 @@ class MusicService : MediaLibraryService() {
                 // Cache the URL
                 urlCache[videoId] = streamUrl
                 Log.d(TAG, "Resolved URL for $videoId")
-                item.buildUpon()
+                return item.buildUpon()
                     .setUri(android.net.Uri.parse(streamUrl))
                     .build()
             } else {
-                Log.w(TAG, "Failed to resolve URL for $videoId (timeout)")
-                item
+                Log.w(TAG, "Failed to resolve URL for $videoId (timeout/null)")
+                return item
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error resolving URL for $videoId", e)
-            item
+            return item
         } finally {
             resolvingItems.remove(videoId)
         }

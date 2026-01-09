@@ -300,7 +300,7 @@ fun PlayerScreen(
                         contentColor = MaterialTheme.colorScheme.onPrimary
                     )
                 ) {
-                    if (isBuffering && playWhenReady) {
+                    if (isBuffering && playWhenReady && !isPlaying) {
                         LoadingIndicator(
                             modifier = Modifier.size(44.dp),
                             color = MaterialTheme.colorScheme.onPrimary 

@@ -150,11 +150,27 @@ class PlayerViewModel(private val context: Context) : ViewModel() {
 
     private fun startProgressUpdates() {
         viewModelScope.launch {
+            var lastPosition = 0L
             while (isActive) {
                 controller?.let {
+                    val currentPos = it.currentPosition
+                    
+                    // Update progress if playing
                     if (it.isPlaying) {
-                        _progress.value = it.currentPosition
+                        _progress.value = currentPos
+                        
+                        // Failsafe: if we are playing and updating progress, we are NOT buffering
+                        if (_isBuffering.value) {
+                             _isBuffering.value = false
+                        }
+                    } else if (currentPos > lastPosition && currentPos > 0) {
+                        // Even if isPlaying says false, if position advanced, we ARE playing
+                        _isPlaying.value = true
+                        _isBuffering.value = false
+                        _progress.value = currentPos
                     }
+                    
+                    lastPosition = currentPos
                 }
                 delay(1000)
             }
@@ -317,18 +333,33 @@ class PlayerViewModel(private val context: Context) : ViewModel() {
 
     fun skipToNext() {
         controller?.let { player ->
-            if (player.mediaItemCount <= 1 && _currentQueue.value.size > 1) {
-                // Queue might still be loading in background
-                return@let
-            }
-            
             if (player.hasNextMediaItem()) {
                 player.seekToNextMediaItem()
                 player.play()
+                _isBuffering.value = true // Expect buffering on skip
             } else {
-                // If we are at the end, checks strictly for repeat mode or just seek to start if handled 
-                player.seekToNext()
-                player.play()
+                // FALLBACK: The player might not have the full queue loaded yet.
+                // Check if our local queue has more items.
+                val currentIndex = player.currentMediaItemIndex
+                val queue = _currentQueue.value
+                
+                if (currentIndex < queue.lastIndex) {
+                    // We have a next song in our list, but Player doesn't know it yet.
+                    // Manually add it and skip.
+                    val nextSong = queue[currentIndex + 1]
+                    val nextItem = createMediaItem(nextSong)
+                    
+                    viewModelScope.launch {
+                        player.addMediaItem(currentIndex + 1, nextItem)
+                        player.seekTo(currentIndex + 1, 0)
+                        player.play()
+                    }
+                    _isBuffering.value = true
+                } else {
+                    // Genuine end of playlist
+                    player.seekToNext()
+                    player.play()
+                }
             }
         }
     }
