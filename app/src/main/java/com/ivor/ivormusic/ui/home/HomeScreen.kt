@@ -261,7 +261,13 @@ fun HomeScreen(
                     1 -> SearchContent(
                         songs = songs,
                         onSongClick = { song ->
-                            playerViewModel.playQueue(listOf(song))
+                            // Fallback: Pass all songs to enable Next/Previous navigation
+                            playerViewModel.playQueue(songs, song)
+                            showPlayerSheet = true
+                        },
+                        onPlayQueue = { songList, song ->
+                            // Use the visible song list (YouTube results or filtered local songs)
+                            playerViewModel.playQueue(songList, song)
                             showPlayerSheet = true
                         },
                         contentPadding = PaddingValues(bottom = 160.dp),
@@ -271,7 +277,8 @@ fun HomeScreen(
                     2 -> LibraryContent(
                         songs = songs,
                         onSongClick = { song: Song ->
-                            playerViewModel.playQueue(listOf(song))
+                            // Pass all songs to enable Next/Previous navigation
+                            playerViewModel.playQueue(songs, song)
                             showPlayerSheet = true
                         },
                         onPlaylistClick = { playlist: com.ivor.ivormusic.data.PlaylistDisplayItem ->
@@ -785,6 +792,7 @@ fun SongStripCard(
 fun SearchContent(
     songs: List<Song>,
     onSongClick: (Song) -> Unit,
+    onPlayQueue: (List<Song>, Song) -> Unit = { _, song -> onSongClick(song) },
     contentPadding: PaddingValues,
     viewModel: HomeViewModel,
     isDarkMode: Boolean
@@ -792,6 +800,7 @@ fun SearchContent(
     com.ivor.ivormusic.ui.search.SearchScreen(
         songs = songs,
         onSongClick = onSongClick,
+        onPlayQueue = onPlayQueue,
         contentPadding = contentPadding,
         viewModel = viewModel,
         isDarkMode = isDarkMode

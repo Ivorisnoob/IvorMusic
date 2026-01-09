@@ -96,6 +96,7 @@ private fun getSegmentedShape(index: Int, count: Int, cornerSize: androidx.compo
 fun SearchScreen(
     songs: List<Song>,
     onSongClick: (Song) -> Unit,
+    onPlayQueue: (List<Song>, Song) -> Unit = { _, song -> onSongClick(song) },
     contentPadding: PaddingValues,
     viewModel: HomeViewModel,
     isDarkMode: Boolean,
@@ -313,7 +314,7 @@ fun SearchScreen(
                         itemsIndexed(displaySongs) { index, song ->
                             SongCard(
                                 song = song,
-                                onClick = { onSongClick(song) },
+                                onClick = { onPlayQueue(displaySongs, song) },
                                 cardColor = cardColor,
                                 textColor = textColor,
                                 secondaryTextColor = secondaryTextColor,
@@ -358,7 +359,7 @@ fun SearchScreen(
                         itemsIndexed(youtubeResults) { index, song ->
                             SongCard(
                                 song = song,
-                                onClick = { onSongClick(song) },
+                                onClick = { onPlayQueue(youtubeResults, song) },
                                 cardColor = cardColor,
                                 textColor = textColor,
                                 secondaryTextColor = secondaryTextColor,
@@ -388,7 +389,7 @@ fun SearchScreen(
                             itemsIndexed(localResults) { index, song ->
                                 SongCard(
                                     song = song,
-                                    onClick = { onSongClick(song) },
+                                    onClick = { onPlayQueue(localResults, song) },
                                     cardColor = cardColor,
                                     textColor = textColor,
                                     secondaryTextColor = secondaryTextColor,
@@ -488,7 +489,7 @@ fun SearchScreen(
                         itemsIndexed(filteredLocalSongs) { index, song ->
                             SongCard(
                                 song = song,
-                                onClick = { onSongClick(song) },
+                                onClick = { onPlayQueue(filteredLocalSongs, song) },
                                 cardColor = cardColor,
                                 textColor = textColor,
                                 secondaryTextColor = secondaryTextColor,
