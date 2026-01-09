@@ -66,8 +66,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.graphics.shapes.CornerRounding
-import androidx.graphics.shapes.RoundedPolygon
 import androidx.graphics.shapes.toPath
 import coil.compose.AsyncImage
 import com.ivor.ivormusic.data.Song
@@ -125,10 +123,7 @@ fun AlbumScreen(
     // Create 8-sided polygon shape for Play button
     val octagonShape = remember {
         PolygonShape(
-            RoundedPolygon(
-                numVertices = 8,
-                rounding = CornerRounding(radius = 0.2f)
-            )
+             androidx.compose.material3.MaterialShapes.Cookie9Sided
         )
     }
     
@@ -153,7 +148,6 @@ fun AlbumScreen(
                     tertiaryContainerColor = tertiaryContainerColor,
                     textColor = textColor,
                     secondaryTextColor = secondaryTextColor,
-                    octagonShape = octagonShape,
                     onBack = onBack,
                     onPlayAll = { onPlayQueue(songs, null) }
                 )
@@ -205,6 +199,7 @@ fun AlbumScreen(
                 }
             }
         }
+        
     }
 }
 
@@ -222,7 +217,6 @@ private fun AlbumHeroHeader(
     tertiaryContainerColor: Color,
     textColor: Color,
     secondaryTextColor: Color,
-    octagonShape: Shape,
     onBack: () -> Unit,
     onPlayAll: () -> Unit
 ) {
@@ -368,48 +362,53 @@ private fun AlbumHeroHeader(
                 modifier = Modifier.fillMaxWidth()
             )
             
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(32.dp))
+        }
+        
+        // Seated Floating Play Button
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .offset(y = 40.dp) // Seat it on the edge of the header (half overlap)
+                .padding(end = 24.dp)
+        ) {
+            val octagonShape = remember {
+                PolygonShape(androidx.compose.material3.MaterialShapes.Cookie9Sided)
+            }
+            val interactionSource = remember { MutableInteractionSource() }
+            val isPressed by interactionSource.collectIsPressedAsState()
+            val scale by animateFloatAsState(
+                targetValue = if (isPressed) 0.92f else 1f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessLow
+                ),
+                label = "playAllButtonScale"
+            )
             
-            // Big centered 8-sided Play button
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.Center
+            Surface(
+                onClick = onPlayAll,
+                modifier = Modifier
+                    .size(80.dp)
+                    .graphicsLayer { 
+                        scaleX = scale
+                        scaleY = scale
+                    },
+                shape = octagonShape,
+                color = primaryColor,
+                shadowElevation = 8.dp,
+                interactionSource = interactionSource
             ) {
-                val interactionSource = remember { MutableInteractionSource() }
-                val isPressed by interactionSource.collectIsPressedAsState()
-                val scale by animateFloatAsState(
-                    targetValue = if (isPressed) 0.92f else 1f,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessLow
-                    ),
-                    label = "playButtonScale"
-                )
-                
-                Surface(
-                    onClick = onPlayAll,
-                    modifier = Modifier
-                        .size(80.dp)
-                        .graphicsLayer { 
-                            scaleX = scale
-                            scaleY = scale
-                        },
-                    shape = octagonShape,
-                    color = primaryColor,
-                    shadowElevation = 12.dp,
-                    interactionSource = interactionSource
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Rounded.PlayArrow,
-                            contentDescription = "Play All",
-                            modifier = Modifier.size(40.dp),
-                            tint = MaterialTheme.colorScheme.onPrimary
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Rounded.PlayArrow,
+                        contentDescription = "Play All",
+                        modifier = Modifier.size(40.dp),
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
                 }
             }
         }

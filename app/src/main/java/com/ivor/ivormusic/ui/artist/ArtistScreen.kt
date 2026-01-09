@@ -76,7 +76,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.graphics.shapes.CornerRounding
 import androidx.graphics.shapes.RoundedPolygon
 import androidx.graphics.shapes.toPath
 import coil.compose.AsyncImage
@@ -111,9 +110,23 @@ internal class PolygonShape(
         density: Density
     ): Outline {
         val path = polygon.toPath().asComposePath()
+        
+        // Calculate bounds to ensure correct scaling
+        val bounds = FloatArray(4)
+        polygon.calculateBounds(bounds)
+        val left = bounds[0]
+        val top = bounds[1]
+        val right = bounds[2]
+        val bottom = bounds[3]
+        val width = right - left
+        val height = bottom - top
+
         val matrix = Matrix()
-        matrix.scale(size.width / 2f, size.height / 2f)
-        matrix.translate(size.width / 2f, size.height / 2f)
+        val safeWidth = if (width > 0) width else 1f
+        val safeHeight = if (height > 0) height else 1f
+        
+        matrix.scale(size.width / safeWidth, size.height / safeHeight)
+        matrix.translate(-left * (size.width / safeWidth), -top * (size.height / safeHeight))
         path.transform(matrix)
         return Outline.Generic(path)
     }
@@ -422,6 +435,7 @@ fun ArtistScreen(
                 }
             }
         }
+        
     }
 }
 
@@ -449,16 +463,6 @@ private fun ArtistHeroHeader(
     onBack: () -> Unit,
     onPlayAll: () -> Unit
 ) {
-    // Create 8-sided polygon shape for Play button
-    val octagonShape = remember {
-        PolygonShape(
-            RoundedPolygon(
-                numVertices = 8,
-                rounding = CornerRounding(radius = 0.2f)
-            )
-        )
-    }
-    
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
@@ -672,49 +676,53 @@ private fun ArtistHeroHeader(
                 }
             }
             
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(32.dp))
+        }
+        
+        // Seated Floating Play Button
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .offset(y = 40.dp) // Seat it on the edge of the header (half overlap)
+                .padding(end = 24.dp)
+        ) {
+            val octagonShape = remember {
+                PolygonShape(androidx.compose.material3.MaterialShapes.Cookie9Sided)
+            }
+            val interactionSource = remember { MutableInteractionSource() }
+            val isPressed by interactionSource.collectIsPressedAsState()
+            val scale by animateFloatAsState(
+                targetValue = if (isPressed) 0.92f else 1f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessLow
+                ),
+                label = "playAllButtonScale"
+            )
             
-            // Big centered 8-sided Play button
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.Center
+            Surface(
+                onClick = onPlayAll,
+                modifier = Modifier
+                    .size(80.dp)
+                    .graphicsLayer { 
+                        scaleX = scale
+                        scaleY = scale
+                    },
+                shape = octagonShape,
+                color = primaryColor,
+                shadowElevation = 8.dp,
+                interactionSource = interactionSource
             ) {
-                // Interactive state for press animation
-                val interactionSource = remember { MutableInteractionSource() }
-                val isPressed by interactionSource.collectIsPressedAsState()
-                val scale by animateFloatAsState(
-                    targetValue = if (isPressed) 0.92f else 1f,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessLow
-                    ),
-                    label = "playButtonScale"
-                )
-                
-                Surface(
-                    onClick = onPlayAll,
-                    modifier = Modifier
-                        .size(88.dp)
-                        .graphicsLayer { 
-                            scaleX = scale
-                            scaleY = scale
-                        },
-                    shape = octagonShape,
-                    color = primaryColor,
-                    shadowElevation = 12.dp,
-                    interactionSource = interactionSource
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Rounded.PlayArrow,
-                            contentDescription = "Play All",
-                            modifier = Modifier.size(44.dp),
-                            tint = MaterialTheme.colorScheme.onPrimary
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Rounded.PlayArrow,
+                        contentDescription = "Play All",
+                        modifier = Modifier.size(40.dp),
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
                 }
             }
         }

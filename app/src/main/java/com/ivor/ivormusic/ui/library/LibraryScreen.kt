@@ -111,6 +111,42 @@ private fun getSegmentedShape(index: Int, count: Int, cornerSize: androidx.compo
     }
 }
 
+// Helper to convert Expressive Polygons to a Compose Shape
+class PolygonShape(private val polygon: RoundedPolygon) : Shape {
+    override fun createOutline(
+        size: Size,
+        layoutDirection: LayoutDirection,
+        density: Density
+    ): Outline {
+        val path = polygon.toPath().asComposePath()
+        
+        // Calculate bounds to ensure correct scaling
+        val bounds = FloatArray(4)
+        polygon.calculateBounds(bounds)
+        val left = bounds[0]
+        val top = bounds[1]
+        val right = bounds[2]
+        val bottom = bounds[3]
+        val width = right - left
+        val height = bottom - top
+
+        // Scale the path to fit the component size
+        val matrix = androidx.compose.ui.graphics.Matrix()
+        // Prevent division by zero
+        val safeWidth = if (width > 0) width else 1f
+        val safeHeight = if (height > 0) height else 1f
+        
+        matrix.scale(
+            x = size.width / safeWidth, 
+            y = size.height / safeHeight
+        )
+        matrix.translate(-left * (size.width / safeWidth), -top * (size.height / safeHeight))
+        path.transform(matrix)
+        
+        return Outline.Generic(path)
+    }
+}
+
 /**
  * Library Screen with Material 3 Expressive design
  * - YouTube playlists and liked songs integration
@@ -974,34 +1010,14 @@ fun PlaylistDetailScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 // Create octagon shape
-                                val octagonShape = remember {
-                                    object : Shape {
-                                        override fun createOutline(
-                                            size: androidx.compose.ui.geometry.Size,
-                                            layoutDirection: LayoutDirection,
-                                            density: Density
-                                        ): Outline {
-                                            val polygon = androidx.graphics.shapes.RoundedPolygon(
-                                                numVertices = 8,
-                                                rounding = androidx.graphics.shapes.CornerRounding(radius = 0.2f)
-                                            )
-                                            val bounds = polygon.calculateBounds()
-                                            val path = polygon.toPath().asComposePath()
-                                            val scaleMatrix = androidx.compose.ui.graphics.Matrix()
-                                            val scaleX = size.width / bounds.width
-                                            val scaleY = size.height / bounds.height
-                                            scaleMatrix.scale(scaleX, scaleY)
-                                            scaleMatrix.translate(-bounds.left * scaleX, -bounds.top * scaleY)
-                                            path.transform(scaleMatrix)
-                                            return Outline.Generic(path)
-                                        }
-                                    }
+                                val expressiveShape = remember {
+                                     PolygonShape(androidx.compose.material3.MaterialShapes.Cookie9Sided)
                                 }
                                 
                                 Surface(
                                     onClick = { if (songs.isNotEmpty()) onPlayQueue(songs, null) },
                                     modifier = Modifier.size(80.dp),
-                                    shape = octagonShape,
+                                    shape = expressiveShape,
                                     color = primaryColor,
                                     shadowElevation = 12.dp
                                 ) {
@@ -1097,7 +1113,7 @@ fun LibraryContent(
     onPlayQueue: (List<Song>, Song?) -> Unit,
     contentPadding: PaddingValues,
     viewModel: HomeViewModel,
-    isDarkMode: Boolean
+    isDarkMode: Boolean,
     initialArtist: String? = null,
     onInitialArtistConsumed: () -> Unit = {}
 ) {
