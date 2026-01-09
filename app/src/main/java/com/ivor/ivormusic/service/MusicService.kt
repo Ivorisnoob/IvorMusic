@@ -79,11 +79,66 @@ class MusicService : MediaLibraryService() {
                     // Also trigger prefetch when playback is ready
                     prefetchUpcomingSongs()
                 }
+                
+                // FIX: Detect when stuck buffering on a YouTube item without URI
+                if (playbackState == Player.STATE_BUFFERING) {
+                    val currentItem = player.currentMediaItem
+                    val videoId = currentItem?.mediaId
+                    
+                    // Check if this is a YouTube item without a resolved URL
+                    if (currentItem != null && 
+                        currentItem.localConfiguration?.uri == null && 
+                        !videoId.isNullOrEmpty()) {
+                        
+                        Log.d(TAG, "Detected buffering on unresolved item: $videoId, attempting to resolve...")
+                        
+                        // Check cache first
+                        val cachedUrl = urlCache[videoId]
+                        if (cachedUrl != null) {
+                            // We have it cached, replace immediately
+                            val resolvedItem = currentItem.buildUpon()
+                                .setUri(android.net.Uri.parse(cachedUrl))
+                                .build()
+                            val currentIndex = player.currentMediaItemIndex
+                            player.replaceMediaItem(currentIndex, resolvedItem)
+                            player.seekTo(currentIndex, 0)
+                            player.play()
+                            Log.d(TAG, "Replaced with cached URL for $videoId")
+                        } else {
+                            // Need to resolve - do it in background
+                            serviceScope.launch(Dispatchers.IO) {
+                                val resolved = resolveStreamUrl(currentItem, videoId)
+                                if (resolved.localConfiguration?.uri != null) {
+                                    serviceScope.launch(Dispatchers.Main) {
+                                        try {
+                                            val currentIndex = player.currentMediaItemIndex
+                                            player.replaceMediaItem(currentIndex, resolved)
+                                            player.seekTo(currentIndex, 0)
+                                            player.play()
+                                            Log.d(TAG, "Resolved and replaced item for $videoId")
+                                        } catch (e: Exception) {
+                                            Log.e(TAG, "Failed to replace item for $videoId", e)
+                                        }
+                                    }
+                                } else if (player.hasNextMediaItem()) {
+                                    // Resolution failed entirely, skip to next
+                                    Log.w(TAG, "Resolution failed for $videoId, skipping to next")
+                                    serviceScope.launch(Dispatchers.Main) {
+                                        player.seekToNext()
+                                        player.play()
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         })
 
+
         val sessionIntent = packageManager.getLaunchIntentForPackage(packageName).let {
-            PendingIntent.getActivity(this, 0, it, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+            val intent = it ?: Intent(this, MainActivity::class.java)
+            PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         }
 
         mediaLibrarySession = MediaLibrarySession.Builder(this, player, object : MediaLibrarySession.Callback {
@@ -93,39 +148,23 @@ class MusicService : MediaLibraryService() {
                 mediaItems: MutableList<MediaItem>
             ): ListenableFuture<MutableList<MediaItem>> {
                 return serviceScope.future {
-                    // LAZY RESOLUTION: Only resolve first 2 songs immediately
-                    // Rest will be resolved in background as playback progresses
+                    // OPTIMIZATION: If adding a single item (likely current song), resolve immediate for fast playback.
+                    // If adding multiple (queue), return immediately so they are added to Player/Notification instantly.
+                    // Background prefetch will handle URL resolution.
                     
-                    val immediateCount = minOf(2, mediaItems.size)
-                    Log.d(TAG, "Adding ${mediaItems.size} items, resolving first $immediateCount immediately")
-                    
-                    val resolvedItems = mediaItems.mapIndexed { index, item ->
-                        async(Dispatchers.IO) {
-                            val videoId = item.mediaId
-                            
-                            // Check if already has URI (local songs)
-                            if (item.localConfiguration?.uri != null) {
-                                return@async item
-                            }
-                            
-                            // Check cache first
-                            urlCache[videoId]?.let { cachedUrl ->
-                                Log.d(TAG, "Cache hit for $videoId")
-                                return@async item.buildUpon()
-                                    .setUri(android.net.Uri.parse(cachedUrl))
-                                    .build()
-                            }
-                            
-                            // Only resolve immediately for first N songs
-                            if (index < immediateCount) {
-                                resolveStreamUrl(item, videoId)
-                            } else {
-                                // Return without URI - will be resolved later
-                                item
-                            }
+                    if (mediaItems.size == 1) {
+                        val item = mediaItems[0]
+                        val videoId = item.mediaId
+                        if (item.localConfiguration?.uri == null) {
+                            val resolved = resolveStreamUrl(item, videoId)
+                            mutableListOf(resolved)
+                        } else {
+                            mediaItems
                         }
+                    } else {
+                        // Pass through faster. Prefetcher will handle urls.
+                        mediaItems
                     }
-                    resolvedItems.awaitAll().toMutableList()
                 }
             }
         })
@@ -137,18 +176,37 @@ class MusicService : MediaLibraryService() {
      * Resolve stream URL for a media item
      */
     private suspend fun resolveStreamUrl(item: MediaItem, videoId: String): MediaItem {
-        // Mark as resolving
-        if (resolvingItems.putIfAbsent(videoId, true) == true) {
-            // Already being resolved by another coroutine, wait and check cache
-            kotlinx.coroutines.delay(100)
-            urlCache[videoId]?.let { cachedUrl ->
-                return item.buildUpon()
-                    .setUri(android.net.Uri.parse(cachedUrl))
-                    .build()
-            }
+        // 1. Check cache first
+        urlCache[videoId]?.let { cachedUrl ->
+            Log.d(TAG, "Cache hit for $videoId")
+            return item.buildUpon()
+                .setUri(android.net.Uri.parse(cachedUrl))
+                .build()
         }
-        
-        return try {
+
+        // 2. Concurrency handling
+        // If putIfAbsent returns true, it means the key WAS associated with true (already resolving)
+        if (resolvingItems.putIfAbsent(videoId, true) == true) {
+            Log.d(TAG, "Already resolving $videoId, waiting...")
+            // Already being resolved by another coroutine (e.g. prefetch). Wait for it.
+            var attempts = 0
+            // Wait up to 5 seconds
+            while (attempts < 50) { 
+                kotlinx.coroutines.delay(100)
+                urlCache[videoId]?.let { cachedUrl ->
+                    Log.d(TAG, "Waited and found URL for $videoId")
+                    return item.buildUpon()
+                        .setUri(android.net.Uri.parse(cachedUrl))
+                        .build()
+                }
+                attempts++
+            }
+            Log.w(TAG, "Waited for $videoId resolution but timed out")
+            return item // Return unresolved if timed out waiting
+        }
+
+        // 3. Perform Resolution (We own the lock)
+        try {
             val streamUrl = withTimeoutOrNull(STREAM_TIMEOUT_MS) {
                 youtubeRepository.getStreamUrl(videoId)
             }
@@ -156,16 +214,16 @@ class MusicService : MediaLibraryService() {
                 // Cache the URL
                 urlCache[videoId] = streamUrl
                 Log.d(TAG, "Resolved URL for $videoId")
-                item.buildUpon()
+                return item.buildUpon()
                     .setUri(android.net.Uri.parse(streamUrl))
                     .build()
             } else {
-                Log.w(TAG, "Failed to resolve URL for $videoId (timeout)")
-                item
+                Log.w(TAG, "Failed to resolve URL for $videoId (timeout/null)")
+                return item
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error resolving URL for $videoId", e)
-            item
+            return item
         } finally {
             resolvingItems.remove(videoId)
         }

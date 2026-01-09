@@ -116,6 +116,9 @@ fun MusicApp(
                 onPlaySong = { song -> 
                     playerViewModel.playSong(song)
                 },
+                onPlayQueue = { songs, song ->
+                    playerViewModel.playQueue(songs, song)
+                },
                 onDeleteDownload = { songId -> 
                     playerViewModel.deleteDownload(songId)
                 },

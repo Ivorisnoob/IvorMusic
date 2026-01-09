@@ -31,6 +31,7 @@ fun DownloadsScreen(
     activeDownloads: Map<String, DownloadProgress>,
     onBack: () -> Unit,
     onPlaySong: (Song) -> Unit,
+    onPlayQueue: (List<Song>, Song) -> Unit = { _, song -> onPlaySong(song) },
     onDeleteDownload: (String) -> Unit,
     onCancelDownload: (String) -> Unit,
     onRetryDownload: (Song) -> Unit,
@@ -123,7 +124,7 @@ fun DownloadsScreen(
                 items(downloadedSongs, key = { "downloaded_${it.id}" }) { song ->
                     DownloadedSongCard(
                         song = song,
-                        onPlay = { onPlaySong(song) },
+                        onPlay = { onPlayQueue(downloadedSongs, song) },
                         onDelete = { onDeleteDownload(song.id) },
                         primaryColor = primaryColor,
                         onSurfaceColor = onSurfaceColor,
