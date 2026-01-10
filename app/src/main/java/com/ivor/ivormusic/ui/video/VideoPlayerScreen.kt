@@ -127,10 +127,11 @@ fun VideoPlayerScreen(
     
     // Player state
     var isLoading by remember { mutableStateOf(true) }
+    var isBuffering by remember { mutableStateOf(false) }
     var hasError by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
     var isPlaying by remember { mutableStateOf(true) }
-    var showControls by remember { mutableStateOf(true) }
+    var showControls by remember { mutableStateOf(false) } // Default hidden per user request
     var isFullscreen by remember { mutableStateOf(false) }
     var isLooping by remember { mutableStateOf(false) }
     var currentPosition by remember { mutableLongStateOf(0L) }
@@ -174,6 +175,19 @@ fun VideoPlayerScreen(
         }
     }
     
+
+    
+    // Handle Buffering State
+    DisposableEffect(exoPlayer) {
+        val listener = object : Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                isBuffering = playbackState == Player.STATE_BUFFERING
+            }
+        }
+        exoPlayer.addListener(listener)
+        onDispose { exoPlayer.removeListener(listener) }
+    }
+
     // Handle Loop Mode
     LaunchedEffect(isLooping) {
         exoPlayer.repeatMode = if (isLooping) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
@@ -302,6 +316,7 @@ fun VideoPlayerScreen(
                 hasError = hasError,
                 errorMessage = errorMessage,
                 isLoading = isLoading,
+                isBuffering = isBuffering,
                 isPlaying = isPlaying,
                 isLooping = isLooping,
                 currentPosition = currentPosition,
@@ -336,6 +351,7 @@ fun VideoPlayerScreen(
                         hasError = hasError,
                         errorMessage = errorMessage,
                         isLoading = isLoading,
+                        isBuffering = isBuffering,
                         isPlaying = isPlaying,
                         isLooping = isLooping,
                         currentPosition = currentPosition,
@@ -451,6 +467,7 @@ private fun FullscreenPlayerContent(
     hasError: Boolean,
     errorMessage: String,
     isLoading: Boolean,
+    isBuffering: Boolean,
     isPlaying: Boolean,
     isLooping: Boolean,
     currentPosition: Long,
@@ -490,7 +507,7 @@ private fun FullscreenPlayerContent(
         // Overlays
         if (hasError) {
             ErrorOverlay(errorMessage)
-        } else if (isLoading) {
+        } else if (isLoading || isBuffering) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 ContainedLoadingIndicator()
             }
@@ -592,6 +609,7 @@ private fun PortraitPlayerContent(
     hasError: Boolean,
     errorMessage: String,
     isLoading: Boolean,
+    isBuffering: Boolean,
     isPlaying: Boolean,
     isLooping: Boolean,
     currentPosition: Long,
@@ -628,7 +646,7 @@ private fun PortraitPlayerContent(
         )
         
         if (hasError) ErrorOverlay(errorMessage)
-        if (isLoading) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        if (isLoading || isBuffering) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             ContainedLoadingIndicator()
         }
         
