@@ -41,6 +41,9 @@ class YouTubeRepository(private val context: Context) {
         
         // Regular YouTube video filter
         const val FILTER_YOUTUBE_VIDEOS = "videos"
+        
+        // Public InnerTube API Key for WEB client
+        private const val INNER_TUBE_API_KEY = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"
     }
 
     private val okHttpClient = OkHttpClient.Builder()
@@ -816,7 +819,8 @@ class YouTubeRepository(private val context: Context) {
                         durationSeconds = item.duration,
                         viewCount = item.viewCount,
                         uploadedDate = item.textualUploadDate,
-                        isLive = item.isShortFormContent.not() && item.duration <= 0
+                        isLive = item.isShortFormContent.not() && item.duration <= 0,
+                        subscriberCount = null // StreamInfoItem doesn't guarantee subscriber count
                     )
                 } catch (e: Exception) {
                     null
@@ -873,7 +877,8 @@ class YouTubeRepository(private val context: Context) {
                         durationSeconds = item.duration,
                         viewCount = item.viewCount,
                         uploadedDate = item.textualUploadDate,
-                        isLive = item.isShortFormContent.not() && item.duration <= 0
+                        isLive = item.isShortFormContent.not() && item.duration <= 0,
+                        subscriberCount = null // StreamInfoItem doesn't guarantee subscriber count
                     )
                 } catch (e: Exception) {
                     null
@@ -1118,11 +1123,18 @@ class YouTubeRepository(private val context: Context) {
                         val isLive = durationText.contains("LIVE", ignoreCase = true) || 
                                     viewCount.contains("watching", ignoreCase = true)
                         
+                        // Get channel icon (if available in metadata)
+                        // Note: lockupViewModel often doesn't contain the channel icon directly in the feed
+                        // We might need to construct a default one or fetch it separately if needed
+                        // But sometimes it's in the metadataRows
+                        var channelIconUrl: String? = null
+                        
                         videos.add(VideoItem(
                             videoId = contentId,
                             title = title,
                             channelName = channelName,
                             channelId = null,
+                            channelIconUrl = channelIconUrl, // Will use default fallback in UI
                             thumbnailUrl = thumbnailUrl,
                             duration = durationSeconds,
                             viewCount = viewCount,
@@ -1197,11 +1209,22 @@ class YouTubeRepository(private val context: Context) {
                     // Extract upload date
                     val publishedText = videoRenderer.optJSONObject("publishedTimeText")?.optString("simpleText")
                     
+                    // Extract channel icon
+                    val channelThumbnails = videoRenderer.optJSONObject("channelThumbnailSupportedRenderers")
+                        ?.optJSONObject("channelThumbnailWithLinkRenderer")
+                        ?.optJSONObject("thumbnail")
+                        ?.optJSONArray("thumbnails")
+                    
+                    val channelIconUrl = channelThumbnails?.let {
+                        it.optJSONObject(0)?.optString("url")
+                    }
+                    
                     videos.add(VideoItem(
                         videoId = videoId,
                         title = title,
                         channelName = channelName,
                         channelId = null,
+                        channelIconUrl = channelIconUrl,
                         thumbnailUrl = thumbnailUrl,
                         duration = durationSeconds,
                         viewCount = viewCountText,
@@ -1230,6 +1253,15 @@ class YouTubeRepository(private val context: Context) {
             2 -> parts[0] * 60 + parts[1]
             3 -> parts[0] * 3600 + parts[1] * 60 + parts[2]
             else -> 0L
+        }
+    }
+
+    private fun formatSubscriberCount(count: Long): String {
+        return when {
+            count >= 1_000_000_000 -> String.format("%.1fB", count / 1_000_000_000.0)
+            count >= 1_000_000 -> String.format("%.1fM", count / 1_000_000.0)
+            count >= 1_000 -> String.format("%.1fK", count / 1_000.0)
+            else -> count.toString()
         }
     }
 
@@ -1295,6 +1327,87 @@ class YouTubeRepository(private val context: Context) {
         } catch (e: Exception) {
             android.util.Log.e("YouTubeRepo", "Error getting video stream", e)
             null
+        }
+    }
+
+    /**
+     * Get available video qualities for a video.
+     */
+    suspend fun getVideoQualities(videoId: String): List<VideoQuality> = withContext(Dispatchers.IO) {
+        try {
+            val streamUrl = "https://www.youtube.com/watch?v=$videoId"
+            val ytService = ServiceList.all().find { it.serviceInfo.name == "YouTube" } 
+                ?: return@withContext emptyList()
+            val streamExtractor = ytService.getStreamExtractor(streamUrl)
+            streamExtractor.fetchPage()
+            
+            // Get combined video+audio streams (muxed)
+            // Note: Adaptive formats (video only) would require separate audio merging which ExoPlayer
+            // handles but simpler to use muxed streams if available for now
+            val qualities = mutableListOf<VideoQuality>()
+            
+            // Add Adaptive Stream (High Quality Auto) via DASH
+            // This is crucial for >720p content as YouTube serves 1080p+ via DASH
+            if (!streamExtractor.dashMpdUrl.isNullOrBlank()) {
+                qualities.add(VideoQuality(
+                    resolution = "Auto (Best)",
+                    url = streamExtractor.dashMpdUrl!!,
+                    format = "DASH",
+                    isDASH = true
+                ))
+            } else if (!streamExtractor.hlsUrl.isNullOrBlank()) {
+                qualities.add(VideoQuality(
+                    resolution = "Auto (HLS)",
+                    url = streamExtractor.hlsUrl!!,
+                    format = "HLS",
+                    isDASH = true
+                ))
+            }
+            
+            // Explicit Adaptive Streams (Video Only + Audio)
+            // This ensures we get 1080p, 1440p, 4K etc even if DASH fails or user wants specific selection
+            val videoOnlyStreams = streamExtractor.videoOnlyStreams
+            val audioStreams = streamExtractor.audioStreams
+            val bestAudio = audioStreams.maxByOrNull { it.averageBitrate }
+            
+            if (bestAudio != null) {
+                val adaptiveQualities = videoOnlyStreams
+                    .filter { it.resolution != null && it.content != null }
+                    .map { videoStream ->
+                        VideoQuality(
+                            resolution = videoStream.resolution!!,
+                            url = videoStream.content!!,
+                            format = videoStream.format?.name,
+                            isDASH = false,
+                            audioUrl = bestAudio.content
+                        )
+                    }
+                qualities.addAll(adaptiveQualities)
+            }
+
+            // Standard Muxed Streams (backup, usually max 720p)
+            val videoStreams = streamExtractor.videoStreams
+            
+            val standardQualities = videoStreams
+                .filter { it.resolution != null && it.content != null }
+                .map { 
+                    VideoQuality(
+                        resolution = it.resolution!!,
+                        url = it.content!!,
+                        format = it.format?.name,
+                        isDASH = false
+                    )
+                }
+                .distinctBy { it.resolution } // Avoid duplicates
+                .sortedByDescending { 
+                    it.resolution.replace("p", "").toIntOrNull() ?: 0 
+                }
+                
+            qualities.addAll(standardQualities)
+            qualities
+        } catch (e: Exception) {
+            android.util.Log.e("YouTubeRepo", "Error getting video qualities", e)
+            emptyList()
         }
     }
 }

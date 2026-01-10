@@ -9,11 +9,14 @@ data class VideoItem(
     val title: String,
     val channelName: String,
     val channelId: String? = null,
+    val channelIconUrl: String? = null,
     val thumbnailUrl: String?,
     val duration: Long, // Duration in seconds
     val viewCount: String, // Formatted view count like "1.2M views"
     val uploadedDate: String? = null, // e.g., "2 days ago"
-    val isLive: Boolean = false
+    val isLive: Boolean = false,
+    val description: String? = null,
+    val subscriberCount: String? = null
 ) {
     /**
      * High-resolution thumbnail URL.
@@ -29,6 +32,12 @@ data class VideoItem(
                 else -> url
             }
         }
+    
+    /**
+     * Get channel icon or default fallback URL.
+     */
+    val channelIconUrlOrDefault: String
+        get() = channelIconUrl ?: "https://www.gstatic.com/youtube/img/creator/no_channel_image_hh.png"
 
     /**
      * Formatted duration string (e.g., "3:45" or "1:23:45").
@@ -36,6 +45,7 @@ data class VideoItem(
     val formattedDuration: String
         get() {
             if (isLive) return "LIVE"
+            if (duration <= 0) return ""
             val hours = duration / 3600
             val minutes = (duration % 3600) / 60
             val seconds = duration % 60
@@ -55,21 +65,27 @@ data class VideoItem(
             title: String,
             channelName: String,
             channelId: String? = null,
+            channelIconUrl: String? = null,
             thumbnailUrl: String?,
             durationSeconds: Long,
             viewCount: Long?,
             uploadedDate: String? = null,
-            isLive: Boolean = false
+            isLive: Boolean = false,
+            description: String? = null,
+            subscriberCount: String? = null
         ): VideoItem = VideoItem(
             videoId = videoId,
             title = title,
             channelName = channelName,
             channelId = channelId,
+            channelIconUrl = channelIconUrl,
             thumbnailUrl = thumbnailUrl,
             duration = durationSeconds,
             viewCount = formatViewCount(viewCount),
             uploadedDate = uploadedDate,
-            isLive = isLive
+            isLive = isLive,
+            description = description,
+            subscriberCount = subscriberCount
         )
 
         /**
@@ -86,3 +102,14 @@ data class VideoItem(
         }
     }
 }
+
+/**
+ * Represents a video stream quality option.
+ */
+data class VideoQuality(
+    val resolution: String, // e.g. "1080p", "720p"
+    val url: String,
+    val format: String? = null, // e.g. "mp4", "webm"
+    val isDASH: Boolean = false,
+    val audioUrl: String? = null // For non-DASH adaptive streams
+)

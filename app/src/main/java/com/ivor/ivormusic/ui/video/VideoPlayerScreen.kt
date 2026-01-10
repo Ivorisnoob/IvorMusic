@@ -1,16 +1,22 @@
 package com.ivor.ivormusic.ui.video
 
 import android.app.Activity
+import android.app.PictureInPictureParams
 import android.content.pm.ActivityInfo
+import android.os.Build
+import android.util.Rational
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,7 +27,6 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
@@ -32,21 +37,37 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Fullscreen
-import androidx.compose.material.icons.filled.FullscreenExit
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Error
+import androidx.compose.material.icons.rounded.Fullscreen
+import androidx.compose.material.icons.rounded.FullscreenExit
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.PlaylistAdd
+import androidx.compose.material.icons.rounded.Repeat
+import androidx.compose.material.icons.rounded.RepeatOne
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material.icons.rounded.ThumbUp
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -60,30 +81,39 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.media3.common.MediaItem
-import androidx.media3.common.Player
-import androidx.media3.common.util.UnstableApi
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.PlayerView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
+import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.MergingMediaSource
+import androidx.media3.exoplayer.source.ProgressiveMediaSource
+import androidx.media3.ui.PlayerView
+import coil.compose.AsyncImage
 import com.ivor.ivormusic.data.VideoItem
+import com.ivor.ivormusic.data.VideoQuality
 import com.ivor.ivormusic.data.YouTubeRepository
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
  * Full-screen video player for Video Mode.
- * Uses ExoPlayer to play actual video content from YouTube.
+ * Redesigned with Material 3 Expressive guidelines.
  */
-@OptIn(UnstableApi::class)
+@OptIn(UnstableApi::class, ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun VideoPlayerScreen(
     video: VideoItem,
@@ -102,39 +132,114 @@ fun VideoPlayerScreen(
     var isPlaying by remember { mutableStateOf(true) }
     var showControls by remember { mutableStateOf(true) }
     var isFullscreen by remember { mutableStateOf(false) }
+    var isLooping by remember { mutableStateOf(false) }
     var currentPosition by remember { mutableLongStateOf(0L) }
     var duration by remember { mutableLongStateOf(0L) }
     var progress by remember { mutableFloatStateOf(0f) }
     
-    // ExoPlayer instance
+    // Quality state
+    var availableQualities by remember { mutableStateOf<List<VideoQuality>>(emptyList()) }
+    var currentQuality by remember { mutableStateOf<VideoQuality?>(null) }
+    var showQualitySheet by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState()
+    
+    // PiP configuration
+    DisposableEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            try {
+                val params = PictureInPictureParams.Builder()
+                    .setAutoEnterEnabled(true)
+                    .setAspectRatio(Rational(16, 9))
+                    .build()
+                activity?.setPictureInPictureParams(params)
+            } catch (e: Exception) {
+                // Ignore
+            }
+        }
+        onDispose {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                try {
+                    activity?.setPictureInPictureParams(
+                        PictureInPictureParams.Builder().setAutoEnterEnabled(false).build()
+                    )
+                } catch (e: Exception) {}
+            }
+        }
+    }
+
+    // ExoPlayer Setup
     val exoPlayer = remember {
         ExoPlayer.Builder(context).build().apply {
             playWhenReady = true
         }
     }
     
-    // Load video stream URL
+    // Handle Loop Mode
+    LaunchedEffect(isLooping) {
+        exoPlayer.repeatMode = if (isLooping) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
+    }
+    
+    // Load video
     LaunchedEffect(video.videoId) {
         isLoading = true
         hasError = false
         try {
-            val streamUrl = youtubeRepository.getVideoStreamUrl(video.videoId)
-            if (streamUrl != null) {
-                val mediaItem = MediaItem.fromUri(streamUrl)
-                exoPlayer.setMediaItem(mediaItem)
+            // First fetch qualities to allow user selection
+            val qualities = youtubeRepository.getVideoQualities(video.videoId)
+            availableQualities = qualities
+            
+            if (qualities.isNotEmpty()) {
+                // Prefer DASH ("Auto (Best)") if available
+                val bestQuality = qualities.find { it.isDASH } ?: qualities.first()
+                currentQuality = bestQuality
+                
+                val mediaItemBuilder = MediaItem.Builder().setUri(bestQuality.url)
+                if (bestQuality.isDASH) {
+                    mediaItemBuilder.setMimeType(MimeTypes.APPLICATION_MPD)
+                }
+                
+                if (bestQuality.audioUrl != null) {
+                    // Create MergingMediaSource for separate video and audio
+                    val dataSourceFactory = DefaultDataSource.Factory(context)
+                    val videoSource = ProgressiveMediaSource.Factory(dataSourceFactory)
+                        .createMediaSource(MediaItem.fromUri(bestQuality.url))
+                    val audioSource = ProgressiveMediaSource.Factory(dataSourceFactory)
+                        .createMediaSource(MediaItem.fromUri(bestQuality.audioUrl!!))
+                    
+                    val mergingSource = MergingMediaSource(videoSource, audioSource)
+                    exoPlayer.setMediaSource(mergingSource)
+                } else {
+                    exoPlayer.setMediaItem(mediaItemBuilder.build())
+                }
                 exoPlayer.prepare()
             } else {
-                hasError = true
-                errorMessage = "Could not load video stream"
+                // Fallback
+                val streamUrl = youtubeRepository.getVideoStreamUrl(video.videoId)
+                if (streamUrl != null) {
+                    val mediaItem = MediaItem.fromUri(streamUrl)
+                    exoPlayer.setMediaItem(mediaItem)
+                    exoPlayer.prepare()
+                } else {
+                    hasError = true
+                    errorMessage = "Stream unavailble"
+                }
             }
         } catch (e: Exception) {
             hasError = true
-            errorMessage = e.message ?: "Failed to load video"
+            errorMessage = e.message ?: "Failed to load"
         }
         isLoading = false
     }
     
-    // Update progress
+    // Report Playback to History
+    LaunchedEffect(video.videoId, currentPosition) {
+        // Report playback once distinct start happens (e.g. > 10s)
+        if (currentPosition > 10000 && duration > 30000) {
+           youtubeRepository.reportPlayback(video.videoId)
+        }
+    }
+
+    // Progress Loop
     LaunchedEffect(exoPlayer) {
         while (true) {
             if (exoPlayer.duration > 0) {
@@ -148,237 +253,185 @@ fun VideoPlayerScreen(
     }
     
     // Auto-hide controls
-    LaunchedEffect(showControls) {
+    LaunchedEffect(showControls, isPlaying) {
         if (showControls && isPlaying) {
-            delay(3000)
+            delay(4000)
             showControls = false
         }
     }
     
-    // Handle fullscreen orientation and immersive mode
-    // Note: This works because MainActivity has configChanges in manifest
+    // Fullscreen / Immersive
     DisposableEffect(isFullscreen) {
         val window = activity?.window
-        val insetsController = window?.let { 
-            WindowCompat.getInsetsController(it, it.decorView) 
-        }
+        val insetsController = window?.let { WindowCompat.getInsetsController(it, it.decorView) }
         
         if (isFullscreen) {
-            // Enter immersive fullscreen mode
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
             insetsController?.apply {
                 hide(WindowInsetsCompat.Type.systemBars())
                 systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             }
         } else {
-            // Exit immersive mode
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             insetsController?.show(WindowInsetsCompat.Type.systemBars())
         }
         
         onDispose {
-            // Restore normal state when leaving
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             insetsController?.show(WindowInsetsCompat.Type.systemBars())
         }
     }
     
-    // Cleanup
     DisposableEffect(Unit) {
-        onDispose {
-            exoPlayer.release()
-        }
+        onDispose { exoPlayer.release() }
     }
     
-    val backgroundColor = Color.Black
-    val textColor = Color.White
+    // ---------------- UI ----------------
     
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(backgroundColor)
+            .background(Color.Black)
     ) {
         if (isFullscreen) {
-            // Fullscreen video - fill entire screen with black background
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) { showControls = !showControls }
-            ) {
-                VideoPlayerView(
-                    exoPlayer = exoPlayer,
-                    modifier = Modifier.fillMaxSize()
-                )
-                
-                // Fullscreen controls overlay
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = showControls,
-                    enter = fadeIn(),
-                    exit = fadeOut()
-                ) {
-                    FullscreenControlsOverlay(
-                        isPlaying = isPlaying,
-                        isLoading = isLoading,
-                        progress = progress,
-                        currentPosition = currentPosition,
-                        duration = duration,
-                        onPlayPauseClick = {
-                            if (exoPlayer.isPlaying) exoPlayer.pause() else exoPlayer.play()
-                        },
-                        onSeek = { newProgress ->
-                            exoPlayer.seekTo((newProgress * duration).toLong())
-                        },
-                        onBackClick = { isFullscreen = false },
-                        onFullscreenClick = { isFullscreen = false },
-                        videoTitle = video.title
-                    )
-                }
-            }
+            // Fullscreen Layout
+            FullscreenPlayerContent(
+                exoPlayer = exoPlayer,
+                showControls = showControls,
+                onToggleControls = { showControls = !showControls },
+                hasError = hasError,
+                errorMessage = errorMessage,
+                isLoading = isLoading,
+                isPlaying = isPlaying,
+                isLooping = isLooping,
+                currentPosition = currentPosition,
+                duration = duration,
+                progress = progress,
+                videoTitle = video.title,
+                onPlayPause = { if (exoPlayer.isPlaying) exoPlayer.pause() else exoPlayer.play() },
+                onSeek = { newProgress -> exoPlayer.seekTo((newProgress * duration).toLong()) },
+                onBack = { isFullscreen = false },
+                onFullscreenToggle = { isFullscreen = false },
+                onSettings = { showQualitySheet = true },
+                onLoopToggle = { isLooping = !isLooping }
+            )
         } else {
-            // Portrait view with video info
+            // Portrait Layout
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .windowInsetsPadding(WindowInsets.systemBars)
             ) {
-                // Video player area (16:9)
+                // Video Area
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(16f / 9f)
                         .background(Color.Black)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) { showControls = !showControls }
                 ) {
-                    // Error state
-                    if (hasError) {
-                        Column(
-                            modifier = Modifier.align(Alignment.Center),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Error,
-                                contentDescription = null,
-                                tint = Color.Red,
-                                modifier = Modifier.size(64.dp)
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                text = errorMessage,
-                                color = textColor,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
-                    } else if (isLoading) {
-                        // Loading state
-                        CircularProgressIndicator(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .align(Alignment.Center),
-                            color = Color.White
-                        )
-                    } else {
-                        // Video player
-                        VideoPlayerView(
-                            exoPlayer = exoPlayer,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                        
-                        // Controls overlay
-                        androidx.compose.animation.AnimatedVisibility(
-                            visible = showControls,
-                            enter = fadeIn(),
-                            exit = fadeOut()
-                        ) {
-                            VideoControlsOverlay(
-                                isPlaying = isPlaying,
-                                progress = progress,
-                                currentPosition = currentPosition,
-                                duration = duration,
-                                onPlayPauseClick = {
-                                    if (exoPlayer.isPlaying) exoPlayer.pause() else exoPlayer.play()
-                                },
-                                onSeek = { newProgress ->
-                                    exoPlayer.seekTo((newProgress * duration).toLong())
-                                },
-                                onBackClick = onBackClick,
-                                onFullscreenClick = { isFullscreen = true }
-                            )
-                        }
-                    }
+                    PortraitPlayerContent(
+                        exoPlayer = exoPlayer,
+                        showControls = showControls,
+                        onToggleControls = { showControls = !showControls },
+                        hasError = hasError,
+                        errorMessage = errorMessage,
+                        isLoading = isLoading,
+                        isPlaying = isPlaying,
+                        isLooping = isLooping,
+                        currentPosition = currentPosition,
+                        duration = duration,
+                        progress = progress,
+                        videoTitle = video.title,
+                        onPlayPause = { if (exoPlayer.isPlaying) exoPlayer.pause() else exoPlayer.play() },
+                        onSeek = { newProgress -> exoPlayer.seekTo((newProgress * duration).toLong()) },
+                        onBack = onBackClick,
+                        onFullscreenToggle = { isFullscreen = true },
+                        onSettings = { showQualitySheet = true },
+                        onLoopToggle = { isLooping = !isLooping }
+                    )
                 }
                 
-                // Video info section
-                Column(
+                // Info Area
+                VideoInfoSection(
+                    video = video,
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
-                        .background(MaterialTheme.colorScheme.background)
-                        .verticalScroll(rememberScrollState())
-                        .padding(16.dp)
-                ) {
-                    // Title
-                    Text(
-                        text = video.title,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    
-                    Spacer(modifier = Modifier.height(8.dp))
-                    
-                    // Views and date
-                    Text(
-                        text = buildString {
-                            if (video.viewCount.isNotEmpty()) {
-                                append(video.viewCount)
-                            }
-                            if (!video.uploadedDate.isNullOrEmpty()) {
-                                if (isNotEmpty()) append(" • ")
-                                append(video.uploadedDate)
-                            }
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    // Channel info
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Channel avatar
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = video.channelName.take(1).uppercase(),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        
-                        Spacer(modifier = Modifier.width(12.dp))
-                        
-                        Text(
-                            text = video.channelName,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onBackground
+                        .background(MaterialTheme.colorScheme.surface)
+                )
+            }
+        }
+    }
+    
+    // Quality Sheet
+    if (showQualitySheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showQualitySheet = false },
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        ) {
+            Column(
+                modifier = Modifier.padding(bottom = 32.dp)
+            ) {
+                Text(
+                    text = "Quality",
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                
+                if (availableQualities.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                } else {
+                    availableQualities.forEach { quality ->
+                        ListItem(
+                            headlineContent = { Text(
+                                text = quality.resolution,
+                                style = MaterialTheme.typography.bodyLarge
+                            ) },
+                            leadingContent = {
+                                if (quality.url == currentQuality?.url) {
+                                    Icon(
+                                        Icons.Rounded.Check,
+                                        contentDescription = "Selected",
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                } else {
+                                    Spacer(Modifier.size(24.dp))
+                                }
+                            },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                                modifier = Modifier
+                                .clickable {
+                                    currentQuality = quality
+                                    val pos = exoPlayer.currentPosition
+                                    
+                                    val mediaItemBuilder = MediaItem.Builder().setUri(quality.url)
+                                    if (quality.isDASH) {
+                                        mediaItemBuilder.setMimeType(MimeTypes.APPLICATION_MPD)
+                                    }
+                                    
+                                    if (quality.audioUrl != null) {
+                                        val dataSourceFactory = DefaultDataSource.Factory(context)
+                                        val videoSource = ProgressiveMediaSource.Factory(dataSourceFactory)
+                                            .createMediaSource(MediaItem.fromUri(quality.url))
+                                        val audioSource = ProgressiveMediaSource.Factory(dataSourceFactory)
+                                            .createMediaSource(MediaItem.fromUri(quality.audioUrl!!))
+                                        
+                                        val mergingSource = MergingMediaSource(videoSource, audioSource)
+                                        exoPlayer.setMediaSource(mergingSource)
+                                    } else {
+                                        exoPlayer.setMediaItem(mediaItemBuilder.build())
+                                    }
+                                    
+                                    exoPlayer.seekTo(pos)
+                                    exoPlayer.prepare()
+                                    exoPlayer.play()
+                                    scope.launch { showQualitySheet = false }
+                                }
                         )
                     }
                 }
@@ -387,264 +440,496 @@ fun VideoPlayerScreen(
     }
 }
 
-@OptIn(UnstableApi::class)
-@Composable
-private fun VideoPlayerView(
-    exoPlayer: ExoPlayer,
-    modifier: Modifier = Modifier
-) {
-    AndroidView(
-        factory = { context ->
-            PlayerView(context).apply {
-                player = exoPlayer
-                useController = false // We use custom controls
-                layoutParams = FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT
-                )
-            }
-        },
-        modifier = modifier
-    )
-}
+// ---------------- Sub-Composables ----------------
 
+@kotlin.OptIn(UnstableApi::class)
 @Composable
-private fun VideoControlsOverlay(
+private fun FullscreenPlayerContent(
+    exoPlayer: ExoPlayer,
+    showControls: Boolean,
+    onToggleControls: () -> Unit,
+    hasError: Boolean,
+    errorMessage: String,
+    isLoading: Boolean,
     isPlaying: Boolean,
-    progress: Float,
+    isLooping: Boolean,
     currentPosition: Long,
     duration: Long,
-    onPlayPauseClick: () -> Unit,
+    progress: Float,
+    videoTitle: String,
+    onPlayPause: () -> Unit,
     onSeek: (Float) -> Unit,
-    onBackClick: () -> Unit,
-    onFullscreenClick: () -> Unit
+    onBack: () -> Unit,
+    onFullscreenToggle: () -> Unit,
+    onSettings: () -> Unit,
+    onLoopToggle: () -> Unit
 ) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.4f))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { onToggleControls() }
     ) {
-        // Back button
-        IconButton(
-            onClick = onBackClick,
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(8.dp)
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
-                tint = Color.White
-            )
-        }
+        // Video View
+        AndroidView(
+            factory = { ctx ->
+                PlayerView(ctx).apply {
+                    player = exoPlayer
+                    useController = false
+                    layoutParams = FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
         
-        // Fullscreen button
-        IconButton(
-            onClick = onFullscreenClick,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(8.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Fullscreen,
-                contentDescription = "Fullscreen",
-                tint = Color.White
-            )
-        }
-        
-        // Play/Pause button
-        Surface(
-            onClick = onPlayPauseClick,
-            shape = CircleShape,
-            color = Color.White.copy(alpha = 0.9f),
-            modifier = Modifier
-                .size(64.dp)
-                .align(Alignment.Center)
-        ) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.fillMaxSize()
-            ) {
-                Icon(
-                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = if (isPlaying) "Pause" else "Play",
-                    tint = Color.Black,
-                    modifier = Modifier.size(32.dp)
-                )
+        // Overlays
+        if (hasError) {
+            ErrorOverlay(errorMessage)
+        } else if (isLoading) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                ContainedLoadingIndicator()
             }
         }
         
-        // Bottom controls
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+        // Controls
+        AnimatedVisibility(
+            visible = showControls,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.fillMaxSize()
         ) {
-            // Progress slider
-            Slider(
-                value = progress,
-                onValueChange = onSeek,
-                modifier = Modifier.fillMaxWidth(),
-                colors = SliderDefaults.colors(
-                    thumbColor = Color.White,
-                    activeTrackColor = Color(0xFFFF0000),
-                    inactiveTrackColor = Color.White.copy(alpha = 0.3f)
-                )
-            )
-            
-            // Time labels
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.5f))
             ) {
-                Text(
-                    text = formatDuration(currentPosition),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White
-                )
-                Text(
-                    text = formatDuration(duration),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White
-                )
+                // Top Bar
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .background(Brush.verticalGradient(colors = listOf(Color.Black.copy(0.7f), Color.Transparent)))
+                        .padding(horizontal = 24.dp, vertical = 24.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    PlayerIconButton(Icons.AutoMirrored.Rounded.ArrowBack, "Back", onBack)
+                    
+                    Spacer(Modifier.width(16.dp))
+                    
+                    Text(
+                        text = videoTitle,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    
+                    Spacer(Modifier.width(16.dp))
+                    
+                    PlayerIconButton(
+                        icon = if (isLooping) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
+                        contentDescription = "Loop",
+                        onClick = onLoopToggle,
+                        tint = if (isLooping) MaterialTheme.colorScheme.primary else Color.White
+                    )
+                    Spacer(Modifier.width(16.dp))
+                    PlayerIconButton(Icons.Rounded.Settings, "Quality", onSettings)
+                    Spacer(Modifier.width(16.dp))
+                    PlayerIconButton(Icons.Rounded.FullscreenExit, "Exit Fullscreen", onFullscreenToggle)
+                }
+                
+                // Center Play/Pause
+                Box(modifier = Modifier.align(Alignment.Center)) {
+                    ExpressivePlayPauseButton(isPlaying = isPlaying, onClick = onPlayPause)
+                }
+                
+                // Bottom Bar
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .background(Brush.verticalGradient(colors = listOf(Color.Transparent, Color.Black.copy(0.8f))))
+                        .padding(horizontal = 24.dp, vertical = 24.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Text(formatDuration(currentPosition), color = Color.White, style = MaterialTheme.typography.labelLarge)
+                        
+                        Slider(
+                            value = progress,
+                            onValueChange = onSeek,
+                            colors = SliderDefaults.colors(
+                                thumbColor = MaterialTheme.colorScheme.primary,
+                                activeTrackColor = MaterialTheme.colorScheme.primary,
+                                inactiveTrackColor = Color.White.copy(0.3f)
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
+                        
+                        Text(formatDuration(duration), color = Color.White, style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@kotlin.OptIn(UnstableApi::class)
+@Composable
+private fun PortraitPlayerContent(
+    exoPlayer: ExoPlayer,
+    showControls: Boolean,
+    onToggleControls: () -> Unit,
+    hasError: Boolean,
+    errorMessage: String,
+    isLoading: Boolean,
+    isPlaying: Boolean,
+    isLooping: Boolean,
+    currentPosition: Long,
+    duration: Long,
+    progress: Float,
+    videoTitle: String,
+    onPlayPause: () -> Unit,
+    onSeek: (Float) -> Unit,
+    onBack: () -> Unit,
+    onFullscreenToggle: () -> Unit,
+    onSettings: () -> Unit,
+    onLoopToggle: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { onToggleControls() }
+    ) {
+        AndroidView(
+            factory = { ctx ->
+                PlayerView(ctx).apply {
+                    player = exoPlayer
+                    useController = false
+                    layoutParams = FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+        
+        if (hasError) ErrorOverlay(errorMessage)
+        if (isLoading) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            ContainedLoadingIndicator()
+        }
+        
+        AnimatedVisibility(
+            visible = showControls,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.5f))
+            ) {
+                // Top
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    PlayerIconButton(Icons.AutoMirrored.Rounded.ArrowBack, "Back", onBack)
+                    
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        PlayerIconButton(
+                            icon = if (isLooping) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
+                            contentDescription = "Loop",
+                            onClick = onLoopToggle,
+                            tint = if (isLooping) MaterialTheme.colorScheme.primary else Color.White
+                        )
+                        PlayerIconButton(Icons.Rounded.Settings, "Quality", onSettings)
+                        PlayerIconButton(Icons.Rounded.Fullscreen, "Fullscreen", onFullscreenToggle)
+                    }
+                }
+                
+                // Center
+                Box(modifier = Modifier.align(Alignment.Center)) {
+                    ExpressivePlayPauseButton(isPlaying = isPlaying, onClick = onPlayPause)
+                }
+                
+                // Bottom
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .background(Brush.verticalGradient(colors = listOf(Color.Transparent, Color.Black.copy(0.8f))))
+                        .padding(horizontal = 16.dp, vertical = 16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(formatDuration(currentPosition), color = Color.White, style = MaterialTheme.typography.labelMedium)
+                        
+                        Slider(
+                            value = progress,
+                            onValueChange = onSeek,
+                            colors = SliderDefaults.colors(
+                                thumbColor = MaterialTheme.colorScheme.primary,
+                                activeTrackColor = MaterialTheme.colorScheme.primary,
+                                inactiveTrackColor = Color.White.copy(0.3f)
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
+                        
+                        Text(formatDuration(duration), color = Color.White, style = MaterialTheme.typography.labelMedium)
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun FullscreenControlsOverlay(
-    isPlaying: Boolean,
-    isLoading: Boolean,
-    progress: Float,
-    currentPosition: Long,
-    duration: Long,
-    onPlayPauseClick: () -> Unit,
-    onSeek: (Float) -> Unit,
-    onBackClick: () -> Unit,
-    onFullscreenClick: () -> Unit,
-    videoTitle: String
+fun VideoInfoSection(
+    video: VideoItem,
+    modifier: Modifier = Modifier
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.4f))
+    Column(
+        modifier = modifier
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp)
     ) {
-        // Top bar with title
+        // Title
+        Text(
+            text = video.title,
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(Modifier.height(8.dp))
+        
+        // Stats
+        Text(
+            text = buildString {
+                if (video.viewCount.isNotEmpty()) append("${video.viewCount} views")
+                if (!video.uploadedDate.isNullOrEmpty()) append(" • ${video.uploadedDate}")
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        
+        Spacer(Modifier.height(24.dp))
+        
+        // Actions
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.TopCenter)
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            IconButton(onClick = onBackClick) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
-                    tint = Color.White
-                )
-            }
-            
-            Text(
-                text = videoTitle,
-                style = MaterialTheme.typography.titleMedium,
-                color = Color.White,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
-            
-            IconButton(onClick = onFullscreenClick) {
-                Icon(
-                    imageVector = Icons.Default.FullscreenExit,
-                    contentDescription = "Exit Fullscreen",
-                    tint = Color.White
-                )
-            }
+            ActionButton(Icons.Rounded.ThumbUp, "Like")
+            ActionButton(Icons.Rounded.Share, "Share")
+            ActionButton(Icons.Rounded.Download, "Download")
+            ActionButton(Icons.Rounded.PlaylistAdd, "Save")
         }
         
-        // Play/Pause button
-        if (!isLoading) {
+        Spacer(Modifier.height(24.dp))
+        
+        // Channel
+        ListItem(
+            headlineContent = { 
+                Text(
+                    text = video.channelName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                ) 
+            },
+            supportingContent = {
+                Text(
+                     text = "${video.subscriberCount ?: "Unknown"} subscribers",
+                     style = MaterialTheme.typography.bodySmall
+                )
+            },
+            leadingContent = {
+                if (!video.channelIconUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = video.channelIconUrl,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = video.channelName.take(1).uppercase(),
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            },
+            trailingContent = {
+                FilledTonalButton(onClick = { /* TODO */ }) {
+                    Text("Subscribe")
+                }
+            },
+            modifier = Modifier.clip(RoundedCornerShape(12.dp))
+        )
+        
+        if (!video.description.isNullOrBlank()) {
+            Spacer(Modifier.height(16.dp))
             Surface(
-                onClick = onPlayPauseClick,
-                shape = CircleShape,
-                color = Color.White.copy(alpha = 0.9f),
-                modifier = Modifier
-                    .size(72.dp)
-                    .align(Alignment.Center)
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (isPlaying) "Pause" else "Play",
-                        tint = Color.Black,
-                        modifier = Modifier.size(40.dp)
+                Column(Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Description",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = video.description!!,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
-        } else {
-            CircularProgressIndicator(
-                modifier = Modifier
-                    .size(64.dp)
-                    .align(Alignment.Center),
-                color = Color.White
+        }
+        Spacer(Modifier.height(32.dp))
+    }
+}
+
+// ---------------- Helpers ----------------
+
+@Composable
+fun PlayerIconButton(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+    tint: Color = Color.White
+) {
+    IconButton(
+        onClick = onClick,
+        colors = IconButtonDefaults.iconButtonColors(
+            containerColor = Color.Black.copy(alpha = 0.5f),
+            contentColor = tint
+        )
+    ) {
+        Icon(icon, contentDescription, tint = tint)
+    }
+}
+
+@Composable
+fun ExpressivePlayPauseButton(
+    isPlaying: Boolean,
+    onClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    
+    // Scale animation on press
+    val scale by animateDpAsState(
+        targetValue = if (isPressed) 72.dp else 80.dp,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f) // Springy!
+    )
+    
+    // Shape Morphing (simulated with Corner Radius)
+    // When playing (Pause icon displayed), we might want a different shape?
+    // Let's keep it simple but responsive: Circle -> Squircle
+    val cornerRadius by animateDpAsState(
+        targetValue = if (isPressed) 24.dp else 40.dp, 
+        animationSpec = spring()
+    )
+
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.size(scale),
+        shape = RoundedCornerShape(cornerRadius),
+        color = MaterialTheme.colorScheme.primaryContainer,
+        interactionSource = interactionSource,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                contentDescription = if (isPlaying) "Pause" else "Play",
+                modifier = Modifier.size(36.dp)
             )
         }
-        
-        // Bottom controls
-        Column(
+    }
+}
+
+@Composable
+fun ActionButton(icon: ImageVector, label: String) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .clickable { }
+            .padding(8.dp)
+    ) {
+        Box(
             modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 16.dp)
+                .size(48.dp)
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape),
+            contentAlignment = Alignment.Center
         ) {
-            // Progress slider
-            Slider(
-                value = progress,
-                onValueChange = onSeek,
-                modifier = Modifier.fillMaxWidth(),
-                colors = SliderDefaults.colors(
-                    thumbColor = Color.White,
-                    activeTrackColor = Color(0xFFFF0000),
-                    inactiveTrackColor = Color.White.copy(alpha = 0.3f)
-                )
-            )
-            
-            // Time labels
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = formatDuration(currentPosition),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White
-                )
-                Text(
-                    text = formatDuration(duration),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White
-                )
-            }
+            Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp))
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
+@Composable
+fun ErrorOverlay(message: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(Icons.Rounded.Error, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(64.dp))
+            Spacer(Modifier.height(16.dp))
+            Text(message, color = Color.White)
         }
     }
 }
 
 private fun formatDuration(millis: Long): String {
     if (millis <= 0) return "0:00"
-    val totalSeconds = millis / 1000
-    val hours = totalSeconds / 3600
-    val minutes = (totalSeconds % 3600) / 60
-    val seconds = totalSeconds % 60
-    
-    return if (hours > 0) {
-        String.format("%d:%02d:%02d", hours, minutes, seconds)
-    } else {
-        String.format("%d:%02d", minutes, seconds)
-    }
+    val seconds = millis / 1000
+    val h = seconds / 3600
+    val m = (seconds % 3600) / 60
+    val s = seconds % 60
+    return if (h > 0) String.format("%d:%02d:%02d", h, m, s) else String.format("%d:%02d", m, s)
 }
