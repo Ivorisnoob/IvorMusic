@@ -164,7 +164,7 @@ fun VideoPlayerOverlay(
         transitionSpec = { spring(stiffness = 300f, dampingRatio = 0.8f) },
         label = "height"
     ) { expanded ->
-        if (expanded) screenHeight else 80.dp 
+        if (expanded) screenHeight else 88.dp 
     }
     
     val widthPadding by transition.animateDp(
@@ -194,9 +194,10 @@ fun VideoPlayerOverlay(
                 .fillMaxWidth()
                 .height(height.coerceAtLeast(0.dp))
                 .clickable(enabled = !isExpanded) { viewModel.setExpanded(true) },
-            shape = RoundedCornerShape(if (isExpanded) 0.dp else 16.dp),
+            shape = RoundedCornerShape(if (isExpanded) 0.dp else 28.dp), // Expressive Large Shape
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            shadowElevation = if (isExpanded) 0.dp else 8.dp
+            tonalElevation = if (isExpanded) 0.dp else 4.dp,
+            shadowElevation = if (isExpanded) 0.dp else 12.dp
         ) {
              if (isExpanded) {
                  // Full Screen Content
