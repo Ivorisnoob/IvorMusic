@@ -142,6 +142,11 @@ class PlayerViewModel(private val context: Context) : ViewModel() {
                         _currentSong.value = it
                         updateCurrentSongLikedStatus()
                         fetchLyrics(it)
+                        
+                        // Sync history with YouTube
+                        viewModelScope.launch {
+                            youTubeRepository.reportPlayback(it.id)
+                        }
                     }
                 }
             })

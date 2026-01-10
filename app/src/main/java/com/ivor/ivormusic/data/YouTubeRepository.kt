@@ -454,9 +454,21 @@ class YouTubeRepository(private val context: Context) {
                         var album = "Unknown Album"
                         
                         if (subtitleRuns != null && subtitleRuns.length() > 0) {
-                            artist = subtitleRuns.optJSONObject(0)?.optString("text") ?: artist
-                            if (subtitleRuns.length() > 2) {
-                                album = subtitleRuns.optJSONObject(2)?.optString("text") ?: album
+                            val firstPart = subtitleRuns.optJSONObject(0)?.optString("text")
+                            if (firstPart == "Song" || firstPart == "Video" || firstPart == "Music video") {
+                                // Format: Song • Artist • Album
+                                if (subtitleRuns.length() > 2) {
+                                    artist = subtitleRuns.optJSONObject(2)?.optString("text") ?: artist
+                                    if (subtitleRuns.length() > 4) {
+                                        album = subtitleRuns.optJSONObject(4)?.optString("text") ?: album
+                                    }
+                                }
+                            } else {
+                                // Format: Artist • Album
+                                artist = firstPart ?: artist
+                                if (subtitleRuns.length() > 2) {
+                                    album = subtitleRuns.optJSONObject(2)?.optString("text") ?: album
+                                }
                             }
                         }
 
@@ -492,7 +504,14 @@ class YouTubeRepository(private val context: Context) {
                             var album = "Unknown"
                             
                             if (subtitleRuns != null && subtitleRuns.length() > 0) {
-                                artist = subtitleRuns.optJSONObject(0)?.optString("text") ?: artist
+                                val firstPart = subtitleRuns.optJSONObject(0)?.optString("text")
+                                if (firstPart == "Song" || firstPart == "Video" || firstPart == "Music video") {
+                                    if (subtitleRuns.length() > 2) {
+                                        artist = subtitleRuns.optJSONObject(2)?.optString("text") ?: artist
+                                    }
+                                } else {
+                                    artist = firstPart ?: artist
+                                }
                             }
                             
                              val thumbnails = item.optJSONObject("thumbnailRenderer")
@@ -634,5 +653,137 @@ class YouTubeRepository(private val context: Context) {
         }
         
         return url // Fallback: return the URL as-is
+    }
+
+    private fun generateCpn(): String {
+        val chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"
+        return (1..16).map { chars.random() }.joinToString("")
+    }
+
+    /**
+     * Reports playback to YouTube Music history.
+     * This mimics the web player's behavior to ensure the song appears in history.
+     * 
+     * The flow is:
+     * 1. Call /player endpoint to get playback tracking URLs
+     * 2. Call the videostatsPlaybackUrl to register the play in history
+     */
+    suspend fun reportPlayback(videoId: String) = withContext(Dispatchers.IO) {
+        if (!sessionManager.isLoggedIn()) return@withContext
+
+        try {
+            val cookies = sessionManager.getCookies() ?: return@withContext
+            val authHeader = YouTubeAuthUtils.getAuthorizationHeader(cookies) ?: ""
+            val cpn = generateCpn()
+            
+            // Visitor Data (default fallback)
+            val visitorData = "Cgt6SUNYVzB2VkJDbyjGrrSmBg%3D%3D"
+
+            // Client constants - using WEB_REMIX (web player)
+            val clientName = "WEB_REMIX"
+            val clientVersion = "1.20241230.01.00"
+
+            // Step 1: Call player endpoint to get tracking URLs
+            val playerUrl = "https://music.youtube.com/youtubei/v1/player"
+            val jsonBody = """
+                {
+                    "context": {
+                        "client": {
+                            "clientName": "$clientName",
+                            "clientVersion": "$clientVersion",
+                            "hl": "en",
+                            "gl": "US",
+                            "visitorData": "$visitorData"
+                        }
+                    },
+                    "videoId": "$videoId",
+                    "cpn": "$cpn",
+                    "playbackContext": {
+                        "contentPlaybackContext": {
+                            "signatureTimestamp": ${System.currentTimeMillis() / 1000}
+                        }
+                    }
+                }
+            """.trimIndent()
+
+            val playerRequest = okhttp3.Request.Builder()
+                .url(playerUrl)
+                .post(jsonBody.toRequestBody("application/json".toMediaType()))
+                .addHeader("Cookie", cookies)
+                .addHeader("Authorization", authHeader)
+                .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                .addHeader("Origin", "https://music.youtube.com")
+                .addHeader("Referer", "https://music.youtube.com/")
+                .addHeader("X-Goog-AuthUser", "0")
+                .addHeader("X-Goog-Api-Format-Version", "1")
+                .addHeader("X-YouTube-Client-Name", "67") // WEB_REMIX numeric ID
+                .addHeader("X-YouTube-Client-Version", clientVersion)
+                .addHeader("X-Goog-Visitor-Id", visitorData)
+                .build()
+
+            val playerResponse = okHttpClient.newCall(playerRequest).execute()
+            val playerResponseBody = playerResponse.body?.string()
+            playerResponse.close()
+            
+            if (playerResponseBody.isNullOrEmpty()) {
+                android.util.Log.e("YouTubeRepo", "Player response empty for $videoId")
+                return@withContext
+            }
+
+            // Parse response to extract playback tracking URL
+            val playerJson = org.json.JSONObject(playerResponseBody)
+            val playbackTracking = playerJson.optJSONObject("playbackTracking")
+            
+            if (playbackTracking == null) {
+                // Log more details about the error
+                val playabilityStatus = playerJson.optJSONObject("playabilityStatus")
+                val status = playabilityStatus?.optString("status")
+                val reason = playabilityStatus?.optString("reason")
+                android.util.Log.e("YouTubeRepo", "No playbackTracking. Status: $status, Reason: $reason")
+                return@withContext
+            }
+            
+            val videostatsPlaybackUrl = playbackTracking
+                .optJSONObject("videostatsPlaybackUrl")
+                ?.optString("baseUrl")
+
+            if (videostatsPlaybackUrl.isNullOrEmpty()) {
+                android.util.Log.e("YouTubeRepo", "No playback tracking URL found for $videoId")
+                return@withContext
+            }
+
+            // Step 3: Call the tracking URL to register the play
+            // Append required parameters
+            val trackingUrl = buildString {
+                append(videostatsPlaybackUrl)
+                if (!videostatsPlaybackUrl.contains("cpn=")) {
+                    append(if (videostatsPlaybackUrl.contains("?")) "&" else "?")
+                    append("cpn=$cpn")
+                }
+                append("&ver=2")
+                append("&c=$clientName")
+            }
+
+            val trackingRequest = okhttp3.Request.Builder()
+                .url(trackingUrl)
+                .get()
+                .addHeader("Cookie", cookies)
+                .addHeader("Authorization", authHeader)
+                .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                .addHeader("Origin", "https://music.youtube.com")
+                .addHeader("Referer", "https://music.youtube.com/watch?v=$videoId")
+                .build()
+
+            val trackingResponse = okHttpClient.newCall(trackingRequest).execute()
+            if (trackingResponse.isSuccessful) {
+                android.util.Log.d("YouTubeRepo", "History sync SUCCESS for $videoId")
+            } else {
+                android.util.Log.e("YouTubeRepo", "History sync failed: ${trackingResponse.code}")
+            }
+            trackingResponse.close()
+
+        } catch (e: Exception) {
+            android.util.Log.e("YouTubeRepo", "Error in reportPlayback", e)
+        }
     }
 }
