@@ -71,6 +71,9 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.ivor.ivormusic.data.VideoItem
 import com.ivor.ivormusic.data.YouTubeRepository
 import kotlinx.coroutines.delay
@@ -152,15 +155,31 @@ fun VideoPlayerScreen(
         }
     }
     
-    // Handle fullscreen
+    // Handle fullscreen orientation and immersive mode
+    // Note: This works because MainActivity has configChanges in manifest
     DisposableEffect(isFullscreen) {
-        if (isFullscreen) {
-            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-        } else {
-            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        val window = activity?.window
+        val insetsController = window?.let { 
+            WindowCompat.getInsetsController(it, it.decorView) 
         }
-        onDispose {
+        
+        if (isFullscreen) {
+            // Enter immersive fullscreen mode
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            insetsController?.apply {
+                hide(WindowInsetsCompat.Type.systemBars())
+                systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+        } else {
+            // Exit immersive mode
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            insetsController?.show(WindowInsetsCompat.Type.systemBars())
+        }
+        
+        onDispose {
+            // Restore normal state when leaving
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            insetsController?.show(WindowInsetsCompat.Type.systemBars())
         }
     }
     
@@ -180,10 +199,11 @@ fun VideoPlayerScreen(
             .background(backgroundColor)
     ) {
         if (isFullscreen) {
-            // Fullscreen video
+            // Fullscreen video - fill entire screen with black background
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .background(Color.Black)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
@@ -195,7 +215,7 @@ fun VideoPlayerScreen(
                 )
                 
                 // Fullscreen controls overlay
-                AnimatedVisibility(
+                androidx.compose.animation.AnimatedVisibility(
                     visible = showControls,
                     enter = fadeIn(),
                     exit = fadeOut()

@@ -335,7 +335,7 @@ private fun VideoHeroSection(isDarkMode: Boolean) {
         Spacer(modifier = Modifier.height(8.dp))
         
         Text(
-            text = "Browse trending videos • Audio playback",
+            text = "Browse trending videos",
             style = MaterialTheme.typography.bodyLarge,
             color = secondaryTextColor
         )
