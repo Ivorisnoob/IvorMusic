@@ -479,11 +479,43 @@ fun VideoInfoSection(
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = video.description!!,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    var isDescriptionExpanded by remember { mutableStateOf(false) }
+                    val cleanedDescription = remember(video.description) {
+                        if (video.description != null) {
+                            androidx.core.text.HtmlCompat.fromHtml(
+                                video.description!!,
+                                androidx.core.text.HtmlCompat.FROM_HTML_MODE_LEGACY
+                            ).toString().trim()
+                        } else ""
+                    }
+                    
+                    if (cleanedDescription.isNotEmpty()) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { isDescriptionExpanded = !isDescriptionExpanded }
+                        ) {
+                            androidx.compose.foundation.text.selection.SelectionContainer {
+                                Text(
+                                    text = cleanedDescription,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = if (isDescriptionExpanded) Int.MAX_VALUE else 3,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            
+                            if (cleanedDescription.length > 100 || cleanedDescription.count { it == '\n' } > 2) {
+                                Text(
+                                    text = if (isDescriptionExpanded) "Show less" else "Show more",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
