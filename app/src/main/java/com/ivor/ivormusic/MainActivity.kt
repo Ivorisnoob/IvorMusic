@@ -153,7 +153,10 @@ fun MusicApp(
             currentVideoToPlay?.let { video ->
                 VideoPlayerScreen(
                     video = video,
-                    onBackClick = { navController.popBackStack() }
+                    onBackClick = { navController.popBackStack() },
+                    onVideoSelect = { newVideo ->
+                         currentVideoToPlay = newVideo
+                    }
                 )
             }
         }

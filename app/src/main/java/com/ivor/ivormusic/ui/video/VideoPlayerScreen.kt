@@ -183,11 +183,46 @@ fun VideoPlayerScreen(
         }
     }
     
+    // Back Handler for PiP
+    // Back Handler for PiP
+    val handleBack: () -> Unit = {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && isPlaying) {
+             try {
+                 val params = PictureInPictureParams.Builder()
+                     .setAspectRatio(Rational(16, 9))
+                     .build()
+                 activity?.enterPictureInPictureMode(params)
+                 Unit
+             } catch (e: Exception) {
+                 onBackClick()
+             }
+        } else {
+            onBackClick()
+        }
+    }
+    
+    // Intercept system back press
+    androidx.activity.compose.BackHandler(onBack = handleBack)
+
     // Update PiP Params(Actions)
     LaunchedEffect(isPlaying) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-             val playIntent = android.app.PendingIntent.getBroadcast(context, 0, android.content.Intent("PIP_PLAY"), android.app.PendingIntent.FLAG_IMMUTABLE)
-             val pauseIntent = android.app.PendingIntent.getBroadcast(context, 1, android.content.Intent("PIP_PAUSE"), android.app.PendingIntent.FLAG_IMMUTABLE)
+             val reqCodePlay = (video.videoId + "play").hashCode()
+             val reqCodePause = (video.videoId + "pause").hashCode()
+             
+             val playIntent = android.app.PendingIntent.getBroadcast(
+                 context, 
+                 reqCodePlay, 
+                 android.content.Intent("PIP_PLAY").setPackage(context.packageName), 
+                 android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+             )
+             val pauseIntent = android.app.PendingIntent.getBroadcast(
+                 context, 
+                 reqCodePause, 
+                 android.content.Intent("PIP_PAUSE").setPackage(context.packageName), 
+                 android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+             )
+             
              val playAction = android.app.RemoteAction(android.graphics.drawable.Icon.createWithResource(context, android.R.drawable.ic_media_play), "Play", "Play", playIntent)
              val pauseAction = android.app.RemoteAction(android.graphics.drawable.Icon.createWithResource(context, android.R.drawable.ic_media_pause), "Pause", "Pause", pauseIntent)
              
@@ -200,7 +235,11 @@ fun VideoPlayerScreen(
              if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                  paramsBuilder.setAutoEnterEnabled(true)
              }
-             activity?.setPictureInPictureParams(paramsBuilder.build())
+             try {
+                 activity?.setPictureInPictureParams(paramsBuilder.build())
+             } catch (e: Exception) {
+                 // Ignore
+             }
         }
     }
     
@@ -393,7 +432,7 @@ fun VideoPlayerScreen(
                         videoTitle = video.title,
                         onPlayPause = { if (exoPlayer.isPlaying) exoPlayer.pause() else exoPlayer.play() },
                         onSeek = { newProgress -> exoPlayer.seekTo((newProgress * duration).toLong()) },
-                        onBack = onBackClick,
+                        onBack = handleBack,
                         onFullscreenToggle = { isFullscreen = true },
                         onSettings = { showQualitySheet = true },
                         onLoopToggle = { isLooping = !isLooping }
