@@ -14,13 +14,16 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
 import com.ivor.ivormusic.data.VideoItem
 import com.ivor.ivormusic.ui.home.HomeScreen
 import com.ivor.ivormusic.ui.home.HomeViewModel
 import com.ivor.ivormusic.ui.player.PlayerViewModel
 import com.ivor.ivormusic.ui.theme.IvorMusicTheme
 import com.ivor.ivormusic.ui.theme.ThemeViewModel
-import com.ivor.ivormusic.ui.video.VideoPlayerScreen
+
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import com.ivor.ivormusic.ui.theme.ThemeMode
@@ -84,82 +87,77 @@ fun MusicApp(
     val playerViewModel: PlayerViewModel = remember { PlayerViewModel(context) }
     val homeViewModel: HomeViewModel = viewModel()
     
-    // State to hold the current video to play
-    var currentVideoToPlay by remember { mutableStateOf<VideoItem?>(null) }
-
-    NavHost(navController = navController, startDestination = "home") {
-        composable("home") {
-            HomeScreen(
-                onSongClick = { song ->
-                    playerViewModel.playSong(song)
-                },
-                playerViewModel = playerViewModel,
-                viewModel = homeViewModel,
-                isDarkMode = isDarkMode,
-                onThemeToggle = onThemeToggle,
-                onNavigateToSettings = { navController.navigate("settings") },
-                onNavigateToDownloads = { navController.navigate("downloads") },
-                onNavigateToVideoPlayer = { video ->
-                    currentVideoToPlay = video
-                    navController.navigate("video_player")
-                },
-                loadLocalSongs = loadLocalSongs,
-                ambientBackground = ambientBackground,
-                videoMode = videoMode
-            )
-        }
-        composable("settings") {
-            com.ivor.ivormusic.ui.settings.SettingsScreen(
-                currentThemeMode = currentThemeMode,
-                onThemeModeChange = onThemeModeChange,
-                loadLocalSongs = loadLocalSongs,
-                onLoadLocalSongsToggle = onLoadLocalSongsToggle,
-                ambientBackground = ambientBackground,
-                onAmbientBackgroundToggle = onAmbientBackgroundToggle,
-                videoMode = videoMode,
-                onVideoModeToggle = onVideoModeToggle,
-                onLogoutClick = { 
-                    homeViewModel.logout()
-                },
-                onBackClick = { navController.popBackStack() }
-            )
-        }
-        composable("downloads") {
-            val downloadedSongs by playerViewModel.downloadedSongs.collectAsState()
-            val downloadProgress by playerViewModel.downloadProgress.collectAsState()
-            
-            com.ivor.ivormusic.ui.downloads.DownloadsScreen(
-                downloadedSongs = downloadedSongs,
-                activeDownloads = downloadProgress,
-                onBack = { navController.popBackStack() },
-                onPlaySong = { song -> 
-                    playerViewModel.playSong(song)
-                },
-                onPlayQueue = { songs, song ->
-                    playerViewModel.playQueue(songs, song)
-                },
-                onDeleteDownload = { songId -> 
-                    playerViewModel.deleteDownload(songId)
-                },
-                onCancelDownload = { songId -> 
-                    playerViewModel.cancelDownload(songId)
-                },
-                onRetryDownload = { song -> 
-                    playerViewModel.toggleDownload(song)
-                }
-            )
-        }
-        composable("video_player") {
-            currentVideoToPlay?.let { video ->
-                VideoPlayerScreen(
-                    video = video,
-                    onBackClick = { navController.popBackStack() },
-                    onVideoSelect = { newVideo ->
-                         currentVideoToPlay = newVideo
+    val videoPlayerViewModel: com.ivor.ivormusic.ui.video.VideoPlayerViewModel = viewModel()
+    
+    Box(modifier = Modifier.fillMaxSize()) {
+        NavHost(navController = navController, startDestination = "home") {
+            composable("home") {
+                HomeScreen(
+                    onSongClick = { song ->
+                        playerViewModel.playSong(song)
+                    },
+                    playerViewModel = playerViewModel,
+                    viewModel = homeViewModel,
+                    isDarkMode = isDarkMode,
+                    onThemeToggle = onThemeToggle,
+                    onNavigateToSettings = { navController.navigate("settings") },
+                    onNavigateToDownloads = { navController.navigate("downloads") },
+                    onNavigateToVideoPlayer = { video ->
+                        videoPlayerViewModel.playVideo(video)
+                    },
+                    loadLocalSongs = loadLocalSongs,
+                    ambientBackground = ambientBackground,
+                    videoMode = videoMode
+                )
+            }
+            composable("settings") {
+                com.ivor.ivormusic.ui.settings.SettingsScreen(
+                    currentThemeMode = currentThemeMode,
+                    onThemeModeChange = onThemeModeChange,
+                    loadLocalSongs = loadLocalSongs,
+                    onLoadLocalSongsToggle = onLoadLocalSongsToggle,
+                    ambientBackground = ambientBackground,
+                    onAmbientBackgroundToggle = onAmbientBackgroundToggle,
+                    videoMode = videoMode,
+                    onVideoModeToggle = onVideoModeToggle,
+                    onLogoutClick = { 
+                        homeViewModel.logout()
+                    },
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
+            composable("downloads") {
+                val downloadedSongs by playerViewModel.downloadedSongs.collectAsState()
+                val downloadProgress by playerViewModel.downloadProgress.collectAsState()
+                
+                com.ivor.ivormusic.ui.downloads.DownloadsScreen(
+                    downloadedSongs = downloadedSongs,
+                    activeDownloads = downloadProgress,
+                    onBack = { navController.popBackStack() },
+                    onPlaySong = { song -> 
+                        playerViewModel.playSong(song)
+                    },
+                    onPlayQueue = { songs, song ->
+                        playerViewModel.playQueue(songs, song)
+                    },
+                    onDeleteDownload = { songId -> 
+                        playerViewModel.deleteDownload(songId)
+                    },
+                    onCancelDownload = { songId -> 
+                        playerViewModel.cancelDownload(songId)
+                    },
+                    onRetryDownload = { song -> 
+                        playerViewModel.toggleDownload(song)
                     }
                 )
             }
         }
+        
+        // Video Overlay
+        com.ivor.ivormusic.ui.video.VideoPlayerOverlay(
+            viewModel = videoPlayerViewModel,
+            onBack = { /* Handled internally by overlay logic */ }
+        )
     }
 }
 
