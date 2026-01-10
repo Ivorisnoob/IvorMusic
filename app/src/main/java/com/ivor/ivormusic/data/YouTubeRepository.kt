@@ -1404,7 +1404,9 @@ class YouTubeRepository(private val context: Context) {
                 }
                 
             qualities.addAll(standardQualities)
-            qualities
+            
+            // Deduplicate based on resolution, preferring DASH/Adaptive
+            qualities.distinctBy { it.resolution }
         } catch (e: Exception) {
             android.util.Log.e("YouTubeRepo", "Error getting video qualities", e)
             emptyList()

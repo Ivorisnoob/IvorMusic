@@ -61,6 +61,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Slider
@@ -507,7 +509,7 @@ private fun FullscreenPlayerContent(
         // Overlays
         if (hasError) {
             ErrorOverlay(errorMessage)
-        } else if (isLoading || isBuffering) {
+        } else if (isLoading || (isBuffering && !showControls)) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 ContainedLoadingIndicator()
             }
@@ -563,7 +565,7 @@ private fun FullscreenPlayerContent(
                 
                 // Center Play/Pause
                 Box(modifier = Modifier.align(Alignment.Center)) {
-                    ExpressivePlayPauseButton(isPlaying = isPlaying, onClick = onPlayPause)
+                    ExpressivePlayPauseButton(isPlaying = isPlaying, isBuffering = isBuffering, onClick = onPlayPause)
                 }
                 
                 // Bottom Bar
@@ -646,7 +648,7 @@ private fun PortraitPlayerContent(
         )
         
         if (hasError) ErrorOverlay(errorMessage)
-        if (isLoading || isBuffering) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        if (isLoading || (isBuffering && !showControls)) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             ContainedLoadingIndicator()
         }
         
@@ -685,7 +687,7 @@ private fun PortraitPlayerContent(
                 
                 // Center
                 Box(modifier = Modifier.align(Alignment.Center)) {
-                    ExpressivePlayPauseButton(isPlaying = isPlaying, onClick = onPlayPause)
+                    ExpressivePlayPauseButton(isPlaying = isPlaying, isBuffering = isBuffering, onClick = onPlayPause)
                 }
                 
                 // Bottom
@@ -864,6 +866,7 @@ fun PlayerIconButton(
 @Composable
 fun ExpressivePlayPauseButton(
     isPlaying: Boolean,
+    isBuffering: Boolean = false,
     onClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -872,12 +875,10 @@ fun ExpressivePlayPauseButton(
     // Scale animation on press
     val scale by animateDpAsState(
         targetValue = if (isPressed) 72.dp else 80.dp,
-        animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f) // Springy!
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f)
     )
     
-    // Shape Morphing (simulated with Corner Radius)
-    // When playing (Pause icon displayed), we might want a different shape?
-    // Let's keep it simple but responsive: Circle -> Squircle
+    // Shape Morphing
     val cornerRadius by animateDpAsState(
         targetValue = if (isPressed) 24.dp else 40.dp, 
         animationSpec = spring()
@@ -892,11 +893,24 @@ fun ExpressivePlayPauseButton(
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Icon(
-                imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                contentDescription = if (isPlaying) "Pause" else "Play",
-                modifier = Modifier.size(36.dp)
-            )
+            if (isBuffering && !isPlaying) {
+                 LoadingIndicator(
+                    modifier = Modifier.size(40.dp),
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    polygons = listOf(
+                        MaterialShapes.SoftBurst,
+                        MaterialShapes.Cookie9Sided,
+                        MaterialShapes.Pill,
+                        MaterialShapes.Sunny
+                    )
+                )
+            } else {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                    contentDescription = if (isPlaying) "Pause" else "Play",
+                    modifier = Modifier.size(36.dp)
+                )
+            }
         }
     }
 }
