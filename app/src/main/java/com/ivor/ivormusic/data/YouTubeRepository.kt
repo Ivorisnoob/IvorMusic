@@ -38,6 +38,9 @@ class YouTubeRepository(private val context: Context) {
         const val FILTER_ALBUMS = "music_albums"
         const val FILTER_PLAYLISTS = "music_playlists"
         const val FILTER_ARTISTS = "music_artists"
+        
+        // Regular YouTube video filter
+        const val FILTER_YOUTUBE_VIDEOS = "videos"
     }
 
     private val okHttpClient = OkHttpClient.Builder()
@@ -784,6 +787,119 @@ class YouTubeRepository(private val context: Context) {
 
         } catch (e: Exception) {
             android.util.Log.e("YouTubeRepo", "Error in reportPlayback", e)
+        }
+    }
+
+    // ============== VIDEO MODE FUNCTIONS ==============
+
+    /**
+     * Search for videos on YouTube (not YouTube Music).
+     * Returns VideoItem objects with view counts, channel info, etc.
+     */
+    suspend fun searchVideos(query: String): List<VideoItem> = withContext(Dispatchers.IO) {
+        try {
+            val ytService = ServiceList.all().find { it.serviceInfo.name == "YouTube" } 
+                ?: return@withContext emptyList()
+            
+            // Use YouTube videos filter (not music_videos)
+            val searchExtractor = ytService.getSearchExtractor(query, listOf(FILTER_YOUTUBE_VIDEOS), "")
+            searchExtractor.fetchPage()
+            
+            searchExtractor.initialPage.items.filterIsInstance<StreamInfoItem>().mapNotNull { item ->
+                try {
+                    VideoItem.fromStreamInfoItem(
+                        videoId = extractVideoId(item.url),
+                        title = item.name ?: "Unknown",
+                        channelName = item.uploaderName ?: "Unknown Channel",
+                        channelId = null, // Would need extra extraction
+                        thumbnailUrl = item.thumbnails?.firstOrNull()?.url,
+                        durationSeconds = item.duration,
+                        viewCount = item.viewCount,
+                        uploadedDate = item.textualUploadDate,
+                        isLive = item.isShortFormContent.not() && item.duration <= 0
+                    )
+                } catch (e: Exception) {
+                    null
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("YouTubeRepo", "Error searching videos", e)
+            emptyList()
+        }
+    }
+
+    /**
+     * Get trending/recommended videos for video mode home screen.
+     * Falls back to popular search if trending endpoint fails.
+     */
+    suspend fun getTrendingVideos(): List<VideoItem> = withContext(Dispatchers.IO) {
+        try {
+            val ytService = ServiceList.all().find { it.serviceInfo.name == "YouTube" }
+                ?: return@withContext emptyList()
+            
+            // Try to get trending/kiosk content
+            val kioskList = ytService.kioskList
+            val trendingExtractor = kioskList.getExtractorById("Trending", null)
+            trendingExtractor.fetchPage()
+            
+            val videos = trendingExtractor.initialPage.items.filterIsInstance<StreamInfoItem>().mapNotNull { item ->
+                try {
+                    VideoItem.fromStreamInfoItem(
+                        videoId = extractVideoId(item.url),
+                        title = item.name ?: "Unknown",
+                        channelName = item.uploaderName ?: "Unknown Channel",
+                        channelId = null,
+                        thumbnailUrl = item.thumbnails?.firstOrNull()?.url,
+                        durationSeconds = item.duration,
+                        viewCount = item.viewCount,
+                        uploadedDate = item.textualUploadDate,
+                        isLive = item.isShortFormContent.not() && item.duration <= 0
+                    )
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            
+            if (videos.isNotEmpty()) return@withContext videos
+            
+            // Fallback to search for popular content
+            searchVideos("trending videos 2026")
+        } catch (e: Exception) {
+            android.util.Log.e("YouTubeRepo", "Error fetching trending videos", e)
+            // Fallback to search
+            try {
+                searchVideos("popular videos")
+            } catch (e2: Exception) {
+                emptyList()
+            }
+        }
+    }
+
+    /**
+     * Get the video stream URL (both audio and video) for playback.
+     * For video mode, we need the video stream not just audio.
+     */
+    suspend fun getVideoStreamUrl(videoId: String): String? = withContext(Dispatchers.IO) {
+        try {
+            val streamUrl = "https://www.youtube.com/watch?v=$videoId"
+            val ytService = ServiceList.all().find { it.serviceInfo.name == "YouTube" } 
+                ?: return@withContext null
+            val streamExtractor = ytService.getStreamExtractor(streamUrl)
+            streamExtractor.fetchPage()
+            
+            // Get video streams (with audio)
+            val videoStreams = streamExtractor.videoStreams
+            // Prefer higher quality
+            val bestVideoStream = videoStreams
+                .filter { it.resolution != null }
+                .maxByOrNull { 
+                    it.resolution?.replace("p", "")?.toIntOrNull() ?: 0 
+                }
+            
+            bestVideoStream?.content
+        } catch (e: Exception) {
+            android.util.Log.e("YouTubeRepo", "Error getting video stream", e)
+            null
         }
     }
 }

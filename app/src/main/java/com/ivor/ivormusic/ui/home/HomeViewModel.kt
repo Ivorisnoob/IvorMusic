@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.ivor.ivormusic.data.SessionManager
 import com.ivor.ivormusic.data.Song
 import com.ivor.ivormusic.data.SongRepository
+import com.ivor.ivormusic.data.VideoItem
 import com.ivor.ivormusic.data.YouTubeRepository
 import com.ivor.ivormusic.data.LikedSongsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -60,6 +61,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     val downloadedSongs = downloadRepository.downloadedSongs
     val downloadingIds = downloadRepository.downloadingIds
     val downloadProgress = downloadRepository.downloadProgress
+
+    // Video Mode State
+    private val _trendingVideos = MutableStateFlow<List<VideoItem>>(emptyList())
+    val trendingVideos: StateFlow<List<VideoItem>> = _trendingVideos.asStateFlow()
+    
+    private val _isVideoLoading = MutableStateFlow(false)
+    val isVideoLoading: StateFlow<Boolean> = _isVideoLoading.asStateFlow()
 
     init {
         checkYouTubeConnection()
@@ -214,5 +222,45 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 _isLoading.value = false
             }
         }
+    }
+
+    // ============== VIDEO MODE FUNCTIONS ==============
+
+    /**
+     * Load trending/recommended videos for video mode home screen.
+     */
+    fun loadTrendingVideos() {
+        viewModelScope.launch {
+            _isVideoLoading.value = true
+            try {
+                val videos = youtubeRepository.getTrendingVideos()
+                if (videos.isNotEmpty()) {
+                    _trendingVideos.value = videos
+                }
+            } catch (e: Exception) {
+                // Handle error silently
+            } finally {
+                _isVideoLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Search for videos (for video mode search).
+     */
+    suspend fun searchVideos(query: String): List<VideoItem> {
+        if (query.isBlank()) return emptyList()
+        return try {
+            youtubeRepository.searchVideos(query)
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    /**
+     * Refresh video mode content.
+     */
+    fun refreshVideos() {
+        loadTrendingVideos()
     }
 }

@@ -62,6 +62,7 @@ import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.MaterialShapes
+import androidx.compose.material.icons.rounded.VideoLibrary
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SegmentedButton
@@ -153,6 +154,8 @@ fun SettingsScreen(
     onLoadLocalSongsToggle: (Boolean) -> Unit,
     ambientBackground: Boolean,
     onAmbientBackgroundToggle: (Boolean) -> Unit,
+    videoMode: Boolean,
+    onVideoModeToggle: (Boolean) -> Unit,
     onLogoutClick: () -> Unit,
     onBackClick: () -> Unit,
     contentPadding: PaddingValues = PaddingValues()
@@ -316,13 +319,33 @@ fun SettingsScreen(
                 }
             }
 
+            // Content Mode Section (Video/Music toggle)
+            item {
+                AnimatedSettingsSection(
+                    title = "Content Mode",
+                    textColor = secondaryTextColor,
+                    visible = isVisible,
+                    delay = 75
+                ) {
+                    ExpressiveSettingsCard(surfaceColor = surfaceColor) {
+                        ExpressiveVideoModeToggleItem(
+                            enabled = videoMode,
+                            onToggle = onVideoModeToggle,
+                            textColor = textColor,
+                            secondaryTextColor = secondaryTextColor,
+                            accentColor = Color(0xFFFF0000) // YouTube red
+                        )
+                    }
+                }
+            }
+
             // Library Section
             item {
                 AnimatedSettingsSection(
                     title = "Library",
                     textColor = secondaryTextColor,
                     visible = isVisible,
-                    delay = 100
+                    delay = 125
                 ) {
                     ExpressiveSettingsCard(surfaceColor = surfaceColor) {
                         ExpressiveLocalSongsToggleItem(
@@ -733,6 +756,86 @@ private fun ExpressiveAmbientBackgroundToggleItem(
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = if (enabled) "Dynamic colors from album art" else "Solid background",
+                color = secondaryTextColor,
+                fontSize = 13.sp
+            )
+        }
+
+        // Switch
+        Switch(
+            checked = enabled,
+            onCheckedChange = onToggle,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = accentColor,
+                uncheckedThumbColor = Color.White,
+                uncheckedTrackColor = secondaryTextColor.copy(alpha = 0.3f),
+                uncheckedBorderColor = Color.Transparent,
+                checkedBorderColor = Color.Transparent
+            )
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ExpressiveVideoModeToggleItem(
+    enabled: Boolean,
+    onToggle: (Boolean) -> Unit,
+    textColor: Color,
+    secondaryTextColor: Color,
+    accentColor: Color
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.97f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = "scale"
+    )
+    
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .scale(scale)
+            .clip(RoundedCornerShape(18.dp))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null
+            ) { onToggle(!enabled) }
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Icon - Video icon with YouTube red accent
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(accentColor.copy(alpha = 0.12f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.VideoLibrary,
+                contentDescription = null,
+                tint = accentColor,
+                modifier = Modifier.size(26.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        // Text
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "Video Mode",
+                color = textColor,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = if (enabled) "Showing YouTube videos" else "Showing music content",
                 color = secondaryTextColor,
                 fontSize = 13.sp
             )

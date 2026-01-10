@@ -30,6 +30,7 @@ class MainActivity : ComponentActivity() {
             val themeMode by themeViewModel.themeMode.collectAsState()
             val loadLocalSongs by themeViewModel.loadLocalSongs.collectAsState()
             val ambientBackground by themeViewModel.ambientBackground.collectAsState()
+            val videoMode by themeViewModel.videoMode.collectAsState()
             
             val isSystemDark = isSystemInDarkTheme()
             val isDarkTheme = remember(themeMode, isSystemDark) {
@@ -52,7 +53,9 @@ class MainActivity : ComponentActivity() {
                     loadLocalSongs = loadLocalSongs,
                     onLoadLocalSongsToggle = { themeViewModel.setLoadLocalSongs(it) },
                     ambientBackground = ambientBackground,
-                    onAmbientBackgroundToggle = { themeViewModel.setAmbientBackground(it) }
+                    onAmbientBackgroundToggle = { themeViewModel.setAmbientBackground(it) },
+                    videoMode = videoMode,
+                    onVideoModeToggle = { themeViewModel.setVideoMode(it) }
                 )
             }
         }
@@ -68,7 +71,9 @@ fun MusicApp(
     loadLocalSongs: Boolean,
     onLoadLocalSongsToggle: (Boolean) -> Unit,
     ambientBackground: Boolean,
-    onAmbientBackgroundToggle: (Boolean) -> Unit
+    onAmbientBackgroundToggle: (Boolean) -> Unit,
+    videoMode: Boolean,
+    onVideoModeToggle: (Boolean) -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val navController = rememberNavController()
@@ -88,7 +93,8 @@ fun MusicApp(
                 onNavigateToSettings = { navController.navigate("settings") },
                 onNavigateToDownloads = { navController.navigate("downloads") },
                 loadLocalSongs = loadLocalSongs,
-                ambientBackground = ambientBackground
+                ambientBackground = ambientBackground,
+                videoMode = videoMode
             )
         }
         composable("settings") {
@@ -99,6 +105,8 @@ fun MusicApp(
                 onLoadLocalSongsToggle = onLoadLocalSongsToggle,
                 ambientBackground = ambientBackground,
                 onAmbientBackgroundToggle = onAmbientBackgroundToggle,
+                videoMode = videoMode,
+                onVideoModeToggle = onVideoModeToggle,
                 onLogoutClick = { 
                     homeViewModel.logout()
                 },

@@ -107,6 +107,8 @@ import androidx.graphics.shapes.toPath
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.animation.with
 import kotlinx.coroutines.launch
+import com.ivor.ivormusic.data.VideoItem
+import com.ivor.ivormusic.ui.video.VideoHomeContent
 
 
 import androidx.compose.animation.ExperimentalAnimationApi
@@ -126,7 +128,8 @@ fun HomeScreen(
     onNavigateToSettings: () -> Unit = {},
     onNavigateToDownloads: () -> Unit = {},
     loadLocalSongs: Boolean = true,
-    ambientBackground: Boolean = true
+    ambientBackground: Boolean = true,
+    videoMode: Boolean = false
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val localSongs by viewModel.songs.collectAsState()
@@ -176,6 +179,17 @@ fun HomeScreen(
     LaunchedEffect(permissionState.status.isGranted, loadLocalSongs) {
         if (permissionState.status.isGranted && loadLocalSongs) {
             viewModel.loadSongs()
+        }
+    }
+    
+    // Video mode state
+    val trendingVideos by viewModel.trendingVideos.collectAsState()
+    val isVideoLoading by viewModel.isVideoLoading.collectAsState()
+    
+    // Load videos when video mode is enabled
+    LaunchedEffect(videoMode) {
+        if (videoMode) {
+            viewModel.loadTrendingVideos()
         }
     }
 
@@ -233,7 +247,36 @@ fun HomeScreen(
             ) { targetTab ->
                 when (targetTab) {
                     0 -> {
-                        if (isLoading && songs.isEmpty()) {
+                        // Video Mode: Show video content
+                        if (videoMode) {
+                            VideoHomeContent(
+                                videos = trendingVideos,
+                                isLoading = isVideoLoading,
+                                onVideoClick = { video ->
+                                    // For now, play video as a song (audio only)
+                                    // TODO: Implement full video player
+                                    val song = com.ivor.ivormusic.data.Song.fromYouTube(
+                                        videoId = video.videoId,
+                                        title = video.title,
+                                        artist = video.channelName,
+                                        album = "",
+                                        duration = video.duration * 1000,
+                                        thumbnailUrl = video.thumbnailUrl
+                                    )
+                                    playerViewModel.playSong(song)
+                                    showPlayerSheet = true
+                                },
+                                onProfileClick = { showAuthDialog = true },
+                                onSettingsClick = onNavigateToSettings,
+                                onDownloadsClick = onNavigateToDownloads,
+                                onRefresh = { viewModel.refreshVideos() },
+                                isDarkMode = isDarkMode,
+                                contentPadding = PaddingValues(bottom = 160.dp),
+                                viewModel = viewModel
+                            )
+                        } 
+                        // Music Mode: Show original content
+                        else if (isLoading && songs.isEmpty()) {
                              Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                 LoadingIndicator(
                                     modifier = Modifier.size(48.dp),
