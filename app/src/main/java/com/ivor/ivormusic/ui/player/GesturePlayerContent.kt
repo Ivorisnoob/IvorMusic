@@ -22,6 +22,7 @@ import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.material3.carousel.HorizontalUncontainedCarousel
 import androidx.compose.material3.carousel.rememberCarouselState
+import androidx.compose.material3.carousel.CarouselDefaults
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -636,6 +637,7 @@ private fun GestureAlbumCarousel(
             itemWidth = albumSize,
             itemSpacing = 16.dp,
             contentPadding = PaddingValues(horizontal = horizontalPadding),
+            flingBehavior = CarouselDefaults.singleAdvanceFlingBehavior(state = carouselState),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(albumSize)
