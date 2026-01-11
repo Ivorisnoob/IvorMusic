@@ -88,11 +88,17 @@ fun GesturePlayerSheetContent(
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
     val onSurfaceVariantColor = MaterialTheme.colorScheme.onSurfaceVariant
     
-    Box(
+    // Root guard against invalid dimensions during collapse transitions
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(surfaceColor)
     ) {
+        // Don't render anything if dimensions are too small
+        if (maxWidth < 200.dp || maxHeight < 200.dp) {
+            return@BoxWithConstraints
+        }
+        
         Crossfade(targetState = showQueue, label = "GesturePlayerQueueTransition") { isQueueVisible ->
             if (isQueueVisible) {
                 GestureQueueView(
@@ -183,42 +189,51 @@ private fun GestureNowPlayingView(
     onSurfaceColor: Color,
     onSurfaceVariantColor: Color
 ) {
-    // Find current song index in queue
-    val currentIndex = remember(currentSong, queue) {
-        queue.indexOfFirst { it.id == currentSong?.id }.coerceAtLeast(0)
+    // Find current song index in queue - ensure safety with empty queues
+    val queueSize = queue.size
+    val currentIndex = remember(currentSong?.id, queueSize) {
+        if (queue.isEmpty()) 0
+        else queue.indexOfFirst { it.id == currentSong?.id }.coerceIn(0, queue.lastIndex.coerceAtLeast(0))
     }
     
     // Track if we're programmatically scrolling to avoid triggering song change
     var isProgrammaticScroll by remember { mutableStateOf(false) }
     
-    // Carousel state synced to current song
-    val carouselState = rememberCarouselState(initialItem = currentIndex) { queue.size.coerceAtLeast(1) }
+    // Carousel state synced to current song - create only if queue is not empty
+    val carouselState = rememberCarouselState(initialItem = currentIndex) { queueSize.coerceAtLeast(1) }
     
     // Sync carousel with song changes from external sources (e.g., queue click)
-    LaunchedEffect(currentIndex, queue.size) {
-        if (queue.isNotEmpty() && carouselState.currentItem != currentIndex && currentIndex in queue.indices) {
+    LaunchedEffect(currentIndex) {
+        if (queueSize > 0 && currentIndex in 0 until queueSize) {
             isProgrammaticScroll = true
             try {
-                carouselState.scrollToItem(currentIndex)
+                if (carouselState.currentItem != currentIndex) {
+                    carouselState.scrollToItem(currentIndex)
+                }
+            } catch (e: Exception) {
+                // Ignore scroll errors when state is invalid
             } finally {
-                // Small delay to ensure scroll completes before allowing user scrolls to trigger song change
-                kotlinx.coroutines.delay(100)
+                kotlinx.coroutines.delay(150)
                 isProgrammaticScroll = false
             }
         }
     }
     
-    // Handle carousel swipe to change songs (only when user initiated)
-    LaunchedEffect(carouselState) {
-        snapshotFlow { carouselState.currentItem }
-            .collect { currentCarouselIndex ->
-                if (!isProgrammaticScroll && 
-                    queue.isNotEmpty() && 
-                    currentCarouselIndex != currentIndex && 
-                    currentCarouselIndex in queue.indices) {
-                    onSongChange(queue[currentCarouselIndex])
-                }
+    // Handle carousel swipe to change songs (debounced to avoid rapid triggers)
+    val currentCarouselItem = carouselState.currentItem
+    LaunchedEffect(currentCarouselItem) {
+        // Debounce to ensure scroll has settled
+        kotlinx.coroutines.delay(100)
+        if (!isProgrammaticScroll && 
+            queueSize > 0 && 
+            currentCarouselItem != currentIndex && 
+            currentCarouselItem in 0 until queueSize) {
+            try {
+                onSongChange(queue[currentCarouselItem])
+            } catch (e: Exception) {
+                // Ignore errors if queue changed
             }
+        }
     }
     
     // Get album info
@@ -227,15 +242,22 @@ private fun GestureNowPlayingView(
         ?: currentSong?.thumbnailUrl 
         ?: currentSong?.albumArtUri?.toString()
     
-    Box(modifier = Modifier.fillMaxSize()) {
-        // Chromatic Mist ambient background
-        ChromaticMistBackground(
-            albumArtUrl = albumArtUrl,
-            enabled = ambientBackground,
-            modifier = Modifier.fillMaxSize()
-        )
+    // Use BoxWithConstraints to guard against invalid dimensions during transitions
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        // Don't render content if dimensions are too small (during collapse animation)
+        if (maxWidth < 100.dp || maxHeight < 100.dp) {
+            return@BoxWithConstraints
+        }
         
-        Column(
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Chromatic Mist ambient background
+            ChromaticMistBackground(
+                albumArtUrl = albumArtUrl,
+                enabled = ambientBackground,
+                modifier = Modifier.fillMaxSize()
+            )
+            
+            Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = 48.dp),
@@ -339,8 +361,8 @@ private fun GestureNowPlayingView(
                         .padding(horizontal = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    // Use most of available width for HUGE album art
-                    val albumSize = maxWidth - 32.dp
+                    // Use most of available width for HUGE album art - ensure positive size
+                    val albumSize = (maxWidth - 32.dp).coerceAtLeast(1.dp)
                     
                     Box(
                         modifier = Modifier.size(albumSize),
@@ -478,6 +500,7 @@ private fun GestureNowPlayingView(
                 Spacer(modifier = Modifier.height(32.dp))
             }
         }
+        }
     }
 }
 
@@ -604,14 +627,15 @@ private fun GestureAlbumCarousel(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        // Use 98% of available space for HUGE album art
-        val albumSize = minOf(maxWidth, maxHeight) * 0.98f
+        // Use 98% of available space for HUGE album art - ensure positive size
+        val albumSize = (minOf(maxWidth, maxHeight) * 0.98f).coerceAtLeast(1.dp)
+        val horizontalPadding = ((maxWidth - albumSize) / 2).coerceAtLeast(0.dp)
         
         HorizontalUncontainedCarousel(
             state = carouselState,
             itemWidth = albumSize,
             itemSpacing = 16.dp,
-            contentPadding = PaddingValues(horizontal = (maxWidth - albumSize) / 2),
+            contentPadding = PaddingValues(horizontal = horizontalPadding),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(albumSize)
@@ -710,9 +734,9 @@ private fun SingleAlbumArt(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        // Use 98% of available space for HUGE album art
-        val albumSize = minOf(maxWidth, maxHeight) * 0.98f
-        val cornerRadius = albumSize * 0.10f
+        // Use 98% of available space for HUGE album art - ensure positive size
+        val albumSize = (minOf(maxWidth, maxHeight) * 0.98f).coerceAtLeast(1.dp)
+        val cornerRadius = (albumSize * 0.10f).coerceAtLeast(0.dp)
         
         Surface(
             modifier = Modifier
@@ -814,11 +838,16 @@ private fun GestureQueueView(
     onSurfaceColor: Color,
     onSurfaceVariantColor: Color
 ) {
-    Box(
+    // Guard against invalid dimensions during transitions
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
+        if (maxWidth < 100.dp || maxHeight < 100.dp) {
+            return@BoxWithConstraints
+        }
+        
         Column(modifier = Modifier.fillMaxSize()) {
             // Top Bar
             Row(
