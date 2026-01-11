@@ -35,6 +35,7 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.People
 import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -60,6 +61,9 @@ import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
 import androidx.compose.material3.carousel.HorizontalUncontainedCarousel
 import androidx.compose.material3.carousel.rememberCarouselState
 import androidx.compose.material3.carousel.CarouselState
+import androidx.compose.material3.HorizontalFloatingToolbar
+import androidx.compose.material3.FloatingToolbarDefaults
+import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.activity.compose.BackHandler
@@ -372,14 +376,65 @@ fun HomeScreen(
             }
         }
         
-        // Floating Navigation bar - truly floating overlay
-        FloatingPillNavBar(
-            selectedTab = selectedTab,
-            onTabSelected = { selectedTab = it },
-            isDarkMode = isDarkMode,
+        // Floating Navigation bar - truly floating overlay using Material 3 Expressive HorizontalFloatingToolbar
+        HorizontalFloatingToolbar(
+            expanded = true,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
+                .padding(bottom = 20.dp),
+            content = {
+                // Home
+                IconToggleButton(
+                    checked = selectedTab == 0,
+                    onCheckedChange = { selectedTab = 0 },
+                    colors = IconButtonDefaults.iconToggleButtonColors(
+                        checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        containerColor = Color.Transparent,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                ) {
+                    Icon(
+                        imageVector = if (selectedTab == 0) Icons.Rounded.Home else Icons.Outlined.Home,
+                        contentDescription = "Home"
+                    )
+                }
+
+                // Search
+                IconToggleButton(
+                    checked = selectedTab == 1,
+                    onCheckedChange = { selectedTab = 1 },
+                    colors = IconButtonDefaults.iconToggleButtonColors(
+                        checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        containerColor = Color.Transparent,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                ) {
+                    Icon(
+                        imageVector = if (selectedTab == 1) Icons.Filled.Search else Icons.Outlined.Search,
+                        contentDescription = "Search"
+                    )
+                }
+
+                // Library
+                IconToggleButton(
+                    checked = selectedTab == 2,
+                    onCheckedChange = { selectedTab = 2 },
+                    colors = IconButtonDefaults.iconToggleButtonColors(
+                        checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        containerColor = Color.Transparent,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                ) {
+                    Icon(
+                        imageVector = if (selectedTab == 2) Icons.Filled.LibraryMusic else Icons.Outlined.LibraryMusic,
+                        contentDescription = "Library"
+                    )
+                }
+            }
         )
 
         // Expandable Player (Mini <-> Full Screen)
