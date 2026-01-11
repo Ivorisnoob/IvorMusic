@@ -1188,21 +1188,32 @@ class YouTubeRepository(private val context: Context) {
                              }
                         }
                         
-                        videos.add(VideoItem(
-                            videoId = contentId,
-                            title = title,
-                            channelName = channelName,
-                            channelId = channelId,
-                            channelIconUrl = channelIconUrl, // Now trying to extract it
-                            thumbnailUrl = thumbnailUrl,
-                            duration = durationSeconds,
-                            viewCount = viewCount,
-                            uploadedDate = uploadDate,
-                            isLive = isLive
-                        ))
+                        // Filter out incomplete/corrupted items
+                        // Check for channel names that are just symbols or "Unknown Channel"
+                        val isValidChannel = channelName != "Unknown Channel" && 
+                                           channelName.trim().length > 1 && 
+                                           channelName.trim() != "."
                         
-                        if (index < 3) {
-                            android.util.Log.d("YouTubeRepo", "Parsed lockupViewModel[$index]: $title by $channelName, avatar: $channelIconUrl")
+                        if (contentId.isNotEmpty() && title != "Unknown Title" && 
+                            !thumbnailUrl.isNullOrBlank() && isValidChannel) {
+                            videos.add(VideoItem(
+                                videoId = contentId,
+                                title = title,
+                                channelName = channelName,
+                                channelId = channelId,
+                                channelIconUrl = channelIconUrl, // Now trying to extract it
+                                thumbnailUrl = thumbnailUrl,
+                                duration = durationSeconds,
+                                viewCount = viewCount,
+                                uploadedDate = uploadDate,
+                                isLive = isLive
+                            ))
+                            
+                            if (index < 3) {
+                                android.util.Log.d("YouTubeRepo", "Parsed lockupViewModel[$index]: $title by $channelName, avatar: $channelIconUrl")
+                            }
+                        } else {
+                             android.util.Log.w("YouTubeRepo", "Skipping invalid lockupViewModel item: id=$contentId, title=$title, channel=$channelName")
                         }
                     }
                 }
