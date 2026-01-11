@@ -284,6 +284,25 @@ private fun GestureNowPlayingView(
                 }
             }
             
+            // ========== 2. "PLAYING FROM" HEADER (right below top bar) ==========
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "Playing From",
+                style = MaterialTheme.typography.labelMedium,
+                color = onSurfaceVariantColor,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = albumName,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = onSurfaceColor,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(horizontal = 32.dp)
+            )
+            
             // ========== CENTER CONTENT (vertically centered) ==========
             Column(
                 modifier = Modifier
@@ -292,26 +311,6 @@ private fun GestureNowPlayingView(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                // ========== 2. "PLAYING FROM" HEADER ==========
-                Text(
-                    text = "Playing From",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = onSurfaceVariantColor,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = albumName,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = onSurfaceColor,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(horizontal = 32.dp)
-                )
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
                 // ========== 3. ALBUM ART / LYRICS (Crossfade) ==========
                 BoxWithConstraints(
                     modifier = Modifier
@@ -362,44 +361,44 @@ private fun GestureNowPlayingView(
                     }
                 }
                 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(24.dp))
                 
                 // ========== 4. SONG INFO ==========
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 32.dp),
+                        .padding(horizontal = 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
                         text = currentSong?.title?.takeIf { !it.startsWith("Unknown") } ?: "Untitled",
-                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                        maxLines = 1,
+                        style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                         color = onSurfaceColor,
                         textAlign = TextAlign.Center
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     val artistName = currentSong?.artist?.takeIf { !it.startsWith("Unknown") } ?: "Unknown Artist"
                     Text(
                         text = artistName,
                         style = MaterialTheme.typography.bodyLarge,
                         color = onSurfaceVariantColor,
                         modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(RoundedCornerShape(12.dp))
                             .clickable(enabled = artistName != "Unknown Artist") { onArtistClick(artistName) }
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
                         textAlign = TextAlign.Center
                     )
                 }
                 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(24.dp))
                 
                 // ========== 5. SLIDER PROGRESS (Video Player Style) ==========
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp)
+                        .padding(horizontal = 20.dp)
                 ) {
                     val progressFraction = if (duration > 0) progress.toFloat() / duration.toFloat() else 0f
                     
@@ -417,7 +416,9 @@ private fun GestureNowPlayingView(
                     )
                     
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
