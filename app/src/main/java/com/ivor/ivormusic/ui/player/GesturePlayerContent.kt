@@ -237,7 +237,7 @@ private fun GestureNowPlayingView(
     }
     
     // Get album info
-    val albumName = currentSong?.album?.takeIf { !it.startsWith("Unknown") } ?: "Unknown Album"
+    val albumName = currentSong?.album?.takeIf { it.isNotEmpty() && !it.startsWith("Unknown") } ?: "Unknown Album"
     val albumArtUrl = currentSong?.highResThumbnailUrl 
         ?: currentSong?.thumbnailUrl 
         ?: currentSong?.albumArtUri?.toString()
