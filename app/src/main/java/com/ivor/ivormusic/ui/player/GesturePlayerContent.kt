@@ -353,7 +353,7 @@ private fun GestureNowPlayingView(
                     .weight(1f)
                     .fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                verticalArrangement = Arrangement.Top
             ) {
                 // ========== 3. ALBUM ART / LYRICS (Crossfade) ==========
                 BoxWithConstraints(
@@ -405,76 +405,85 @@ private fun GestureNowPlayingView(
                     }
                 }
                 
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                // ========== 4. SONG INFO ==========
-                Column(
+                // Centered song info and progress area
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = currentSong?.title?.takeIf { !it.startsWith("Unknown") } ?: "Untitled",
-                        style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        color = onSurfaceColor,
-                        textAlign = TextAlign.Center
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    val artistName = currentSong?.artist?.takeIf { !it.startsWith("Unknown") } ?: "Unknown Artist"
-                    Text(
-                        text = artistName,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = onSurfaceVariantColor,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable(enabled = artistName != "Unknown Artist") { onArtistClick(artistName) }
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                        textAlign = TextAlign.Center
-                    )
-                }
-                
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                // ========== 5. SLIDER PROGRESS (Video Player Style) ==========
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp)
-                ) {
-                    val progressFraction = if (duration > 0) progress.toFloat() / duration.toFloat() else 0f
-                    
-                    Slider(
-                        value = progressFraction,
-                        onValueChange = { fraction -> 
-                            onSeekTo((fraction * duration).toLong())
-                        },
-                        colors = SliderDefaults.colors(
-                            thumbColor = primaryColor,
-                            activeTrackColor = primaryColor,
-                            inactiveTrackColor = onSurfaceVariantColor.copy(alpha = 0.2f)
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(
-                            text = formatDuration(progress), 
-                            style = MaterialTheme.typography.labelMedium, 
-                            color = onSurfaceVariantColor
-                        )
-                        Text(
-                            text = formatDuration(duration), 
-                            style = MaterialTheme.typography.labelMedium, 
-                            color = onSurfaceVariantColor
-                        )
+                        // ========== 4. SONG INFO ==========
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp),
+                            horizontalAlignment = Alignment.Start
+                        ) {
+                            Text(
+                                text = currentSong?.title?.takeIf { !it.startsWith("Unknown") } ?: "Untitled",
+                                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = onSurfaceColor,
+                                textAlign = TextAlign.Start
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            val artistName = currentSong?.artist?.takeIf { !it.startsWith("Unknown") } ?: "Unknown Artist"
+                            Text(
+                                text = artistName,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = onSurfaceVariantColor,
+                                modifier = Modifier
+                                    .clickable(enabled = artistName != "Unknown Artist") { onArtistClick(artistName) },
+                                textAlign = TextAlign.Start
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.height(30.dp))
+                        
+                        // ========== 5. SLIDER PROGRESS (Video Player Style) ==========
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp)
+                        ) {
+                            val progressFraction = if (duration > 0) progress.toFloat() / duration.toFloat() else 0f
+                            
+                            Slider(
+                                value = progressFraction,
+                                onValueChange = { fraction -> 
+                                    onSeekTo((fraction * duration).toLong())
+                                },
+                                colors = SliderDefaults.colors(
+                                    thumbColor = primaryColor,
+                                    activeTrackColor = primaryColor,
+                                    inactiveTrackColor = onSurfaceVariantColor.copy(alpha = 0.2f)
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = formatDuration(progress), 
+                                    style = MaterialTheme.typography.labelMedium, 
+                                    color = onSurfaceVariantColor
+                                )
+                                Text(
+                                    text = formatDuration(duration), 
+                                    style = MaterialTheme.typography.labelMedium, 
+                                    color = onSurfaceVariantColor
+                                )
+                            }
+                        }
                     }
                 }
             }
