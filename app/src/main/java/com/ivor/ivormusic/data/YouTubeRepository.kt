@@ -1334,6 +1334,58 @@ class YouTubeRepository(private val context: Context) {
     /**
      * Get available video qualities for a video.
      */
+
+
+    private fun getChannelAvatarUrl(channelId: String?): String? {
+        if (channelId.isNullOrBlank()) return null
+        // Quick check for standard channel IDs
+        if (!channelId.startsWith("UC")) return null
+        
+        try {
+            val json = fetchInternalApi(channelId).takeIf { it.isNotEmpty() } ?: return null
+            val root = org.json.JSONObject(json)
+            
+            val objects = mutableListOf<org.json.JSONObject>()
+            // Search for various header types
+            findAllObjects(root, "musicImmersiveHeaderRenderer", objects)
+            findAllObjects(root, "musicVisualHeaderRenderer", objects)
+            findAllObjects(root, "c4TabbedHeaderRenderer", objects)
+            findAllObjects(root, "pageHeaderRenderer", objects) 
+
+            for (obj in objects) {
+                // 1. Music Headers often use "thumbnail" -> "musicThumbnailRenderer"
+                var thumbArr = obj.optJSONObject("thumbnail")
+                    ?.optJSONObject("musicThumbnailRenderer")
+                    ?.optJSONObject("thumbnail")
+                    ?.optJSONArray("thumbnails")
+                
+                // 2. Direct "thumbnail" or "avatar" (Standard YouTube)
+                if (thumbArr == null) {
+                    thumbArr = obj.optJSONObject("thumbnail")?.optJSONArray("thumbnails")
+                        ?: obj.optJSONObject("avatar")?.optJSONArray("thumbnails")
+                }
+
+                // 3. PageHeaderViewModel (New YouTube Mobile/Desktop)
+                if (thumbArr == null) {
+                   val content = obj.optJSONObject("content")?.optJSONObject("pageHeaderViewModel")
+                   thumbArr = content?.optJSONObject("image")
+                       ?.optJSONObject("decoratedAvatarViewModel")
+                       ?.optJSONObject("avatar")
+                       ?.optJSONObject("avatarViewModel")
+                       ?.optJSONObject("image")
+                       ?.optJSONArray("sources")
+                }
+
+                if (thumbArr != null && thumbArr.length() > 0) {
+                    return thumbArr.optJSONObject(thumbArr.length() - 1)?.optString("url")
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("YouTubeRepo", "Error fetching channel avatar", e)
+        }
+        return null
+    }
+
     /**
      * Get video details including qualities and related videos.
      */
@@ -1394,7 +1446,11 @@ class YouTubeRepository(private val context: Context) {
             
             // Channel Info
             val channelName = streamExtractor.uploaderName ?: "Unknown"
-            val channelIconUrl: String? = null // uploaderAvatarUrl remains unresolved, using null to fix build
+            val channelId = streamExtractor.uploaderUrl?.replace("https://www.youtube.com/channel/", "")
+            
+            // 🌟 Try to fetch channel avatar
+            val channelIconUrl = getChannelAvatarUrl(channelId)
+            
             val subCount = streamExtractor.uploaderSubscriberCount
             
             // Create updated video item (using original videoId)
@@ -1402,7 +1458,7 @@ class YouTubeRepository(private val context: Context) {
                 videoId = videoId,
                 title = streamExtractor.name ?: "Unknown",
                 channelName = channelName,
-                channelId = streamExtractor.uploaderUrl?.replace("https://www.youtube.com/channel/", ""),
+                channelId = channelId,
                 channelIconUrl = channelIconUrl,
                 thumbnailUrl = streamExtractor.thumbnails?.maxByOrNull { it.width }?.url, // Use high res if available
                 duration = streamExtractor.length,
