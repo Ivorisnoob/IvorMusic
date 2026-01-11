@@ -87,6 +87,8 @@ fun VideoPlayerContent(
         val insetsController = window?.let { WindowCompat.getInsetsController(it, it.decorView) }
         
         if (isFullscreen) {
+            // Allow content to draw behind system bars first
+            window?.let { WindowCompat.setDecorFitsSystemWindows(it, false) }
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
             insetsController?.apply {
                 hide(WindowInsetsCompat.Type.systemBars())
@@ -118,8 +120,13 @@ fun VideoPlayerContent(
             }
     ) {
         if (isFullscreen) {
-            // Fullscreen Layout
-            FullscreenPlayerContent(
+            // Fullscreen Layout - ensure it fills entire screen including cutout areas
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black) // Extra black background to prevent any bleed
+            ) {
+                FullscreenPlayerContent(
                 exoPlayer = exoPlayer,
                 showControls = showControls,
                 onToggleControls = { showControls = !showControls },
@@ -140,6 +147,7 @@ fun VideoPlayerContent(
                 onSettings = { showQualitySheet = true },
                 onLoopToggle = { isLooping = !isLooping }
             )
+            }
         } else {
             // Portrait Layout
              Column(

@@ -777,7 +777,7 @@ private fun ExpressiveAmbientBackgroundToggleItem(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class)
 @Composable
 private fun ExpressiveVideoModeToggleItem(
     enabled: Boolean,
@@ -786,74 +786,82 @@ private fun ExpressiveVideoModeToggleItem(
     secondaryTextColor: Color,
     accentColor: Color
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
+    val options = listOf("Music", "Video")
+    val selectedIndex = if (enabled) 1 else 0
     
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "scale"
-    )
-    
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .scale(scale)
-            .clip(RoundedCornerShape(18.dp))
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null
-            ) { onToggle(!enabled) }
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 16.dp, vertical = 14.dp)
     ) {
-        // Icon - Video icon with YouTube red accent
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(accentColor.copy(alpha = 0.12f)),
-            contentAlignment = Alignment.Center
+        // Header Row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = Icons.Rounded.VideoLibrary,
-                contentDescription = null,
-                tint = accentColor,
-                modifier = Modifier.size(26.dp)
-            )
+            // Icon
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(accentColor.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (enabled) Icons.Rounded.VideoLibrary else Icons.Rounded.MusicNote,
+                    contentDescription = null,
+                    tint = accentColor,
+                    modifier = Modifier.size(26.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            // Text
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Content Mode",
+                    color = textColor,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = if (enabled) "Showing YouTube videos" else "Showing music content",
+                    color = secondaryTextColor,
+                    fontSize = 13.sp
+                )
+            }
         }
-
-        Spacer(modifier = Modifier.width(16.dp))
-
-        // Text
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = "Video Mode",
-                color = textColor,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = if (enabled) "Showing YouTube videos" else "Showing music content",
-                color = secondaryTextColor,
-                fontSize = 13.sp
-            )
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        // Segmented Button Row
+        SingleChoiceSegmentedButtonRow(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            options.forEachIndexed { index, label ->
+                SegmentedButton(
+                    selected = selectedIndex == index,
+                    onClick = { onToggle(index == 1) },
+                    shape = SegmentedButtonDefaults.itemShape(
+                        index = index,
+                        count = options.size
+                    ),
+                    icon = {
+                        SegmentedButtonDefaults.Icon(active = selectedIndex == index) {
+                            Icon(
+                                imageVector = if (index == 0) Icons.Rounded.MusicNote else Icons.Rounded.VideoLibrary,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                ) {
+                    Text(label)
+                }
+            }
         }
-
-        // Switch
-        Switch(
-            checked = enabled,
-            onCheckedChange = onToggle,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
-                checkedTrackColor = accentColor,
-                uncheckedThumbColor = Color.White,
-                uncheckedTrackColor = secondaryTextColor.copy(alpha = 0.3f),
-                uncheckedBorderColor = Color.Transparent,
-                checkedBorderColor = Color.Transparent
-            )
-        )
     }
 }
 
