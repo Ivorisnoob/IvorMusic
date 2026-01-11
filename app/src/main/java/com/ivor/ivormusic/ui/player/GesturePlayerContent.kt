@@ -73,6 +73,9 @@ fun GesturePlayerSheetContent(
     val playWhenReady by viewModel.playWhenReady.collectAsState()
     val isFavorite by viewModel.isCurrentSongLiked.collectAsState()
     
+    // Lyrics state
+    val lyricsResult by viewModel.lyricsResult.collectAsState()
+    
     var showQueue by remember { mutableStateOf(false) }
     var showLyrics by remember { mutableStateOf(false) }
 
@@ -112,6 +115,9 @@ fun GesturePlayerSheetContent(
                     shuffleModeEnabled = shuffleModeEnabled,
                     repeatMode = repeatMode,
                     isFavorite = isFavorite,
+                    lyricsResult = lyricsResult,
+                    showLyrics = showLyrics,
+                    onToggleLyrics = { showLyrics = !showLyrics },
                     onSeekTo = { viewModel.seekTo(it) },
                     ambientBackground = ambientBackground,
                     onCollapse = onCollapse,
@@ -150,6 +156,9 @@ private fun GestureNowPlayingView(
     shuffleModeEnabled: Boolean,
     repeatMode: Int,
     isFavorite: Boolean,
+    lyricsResult: LyricsResult,
+    showLyrics: Boolean,
+    onToggleLyrics: () -> Unit,
     onSeekTo: (Long) -> Unit,
     ambientBackground: Boolean,
     onCollapse: () -> Unit,
@@ -209,7 +218,8 @@ private fun GestureNowPlayingView(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = 48.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
             // ========== 1. TOP BAR ==========
             Row(
@@ -232,7 +242,33 @@ private fun GestureNowPlayingView(
                     Icon(Icons.Default.KeyboardArrowDown, "Collapse", modifier = Modifier.size(28.dp))
                 }
                 
-                Spacer(modifier = Modifier.weight(1f))
+                // Lyrics Toggle Button (center)
+                Surface(
+                    onClick = onToggleLyrics,
+                    shape = RoundedCornerShape(24.dp),
+                    color = if (showLyrics) MaterialTheme.colorScheme.primary 
+                           else MaterialTheme.colorScheme.surfaceContainerHigh
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Lyrics,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = if (showLyrics) MaterialTheme.colorScheme.onPrimary 
+                                   else MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (showLyrics) "Now Playing" else "Lyrics",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = if (showLyrics) MaterialTheme.colorScheme.onPrimary 
+                                   else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
                 
                 // Queue button
                 FilledIconButton(
@@ -248,145 +284,177 @@ private fun GestureNowPlayingView(
                 }
             }
             
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            // ========== 2. "PLAYING FROM" HEADER ==========
-            Text(
-                text = "Playing From",
-                style = MaterialTheme.typography.labelMedium,
-                color = onSurfaceVariantColor,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = albumName,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = onSurfaceColor,
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(horizontal = 32.dp)
-            )
-            
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            // ========== 3. ALBUM ART CAROUSEL ==========
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .padding(horizontal = 8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                if (queue.isNotEmpty()) {
-                    GestureAlbumCarousel(
-                        queue = queue,
-                        carouselState = carouselState,
-                        isPlaying = isPlaying,
-                        isBuffering = isBuffering,
-                        onPlayPauseToggle = onPlayPauseToggle
-                    )
-                } else if (currentSong != null) {
-                    // Single album art
-                    SingleAlbumArt(
-                        song = currentSong,
-                        isPlaying = isPlaying,
-                        isBuffering = isBuffering,
-                        onPlayPauseToggle = onPlayPauseToggle
-                    )
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            // ========== 4. SONG INFO ==========
+            // ========== CENTER CONTENT (vertically centered) ==========
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .weight(1f)
+                    .fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
+                // ========== 2. "PLAYING FROM" HEADER ==========
                 Text(
-                    text = currentSong?.title?.takeIf { !it.startsWith("Unknown") } ?: "Untitled",
-                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = onSurfaceColor,
+                    text = "Playing From",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = onSurfaceVariantColor,
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                val artistName = currentSong?.artist?.takeIf { !it.startsWith("Unknown") } ?: "Unknown Artist"
                 Text(
-                    text = artistName,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = onSurfaceVariantColor,
+                    text = albumName,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = onSurfaceColor,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(horizontal = 32.dp)
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // ========== 3. ALBUM ART / LYRICS (Crossfade) ==========
+                BoxWithConstraints(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable(enabled = artistName != "Unknown Artist") { onArtistClick(artistName) }
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                    textAlign = TextAlign.Center
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            // ========== 5. SLIDER PROGRESS (Video Player Style) ==========
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-            ) {
-                val progressFraction = if (duration > 0) progress.toFloat() / duration.toFloat() else 0f
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Use most of available width for HUGE album art
+                    val albumSize = maxWidth - 32.dp
+                    
+                    Box(
+                        modifier = Modifier.size(albumSize),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Crossfade(targetState = showLyrics, label = "AlbumLyricsCrossfade") { isLyricsVisible ->
+                            if (isLyricsVisible) {
+                                // Synced Lyrics View
+                                SyncedLyricsView(
+                                    lyricsResult = lyricsResult,
+                                    currentPositionMs = progress,
+                                    onSeekTo = onSeekTo,
+                                    ambientBackground = ambientBackground,
+                                    primaryColor = primaryColor,
+                                    onSurfaceColor = onSurfaceColor,
+                                    onSurfaceVariantColor = onSurfaceVariantColor
+                                )
+                            } else {
+                                // Album Art Carousel
+                                if (queue.isNotEmpty()) {
+                                    GestureAlbumCarousel(
+                                        queue = queue,
+                                        carouselState = carouselState,
+                                        isPlaying = isPlaying,
+                                        isBuffering = isBuffering,
+                                        onPlayPauseToggle = onPlayPauseToggle
+                                    )
+                                } else if (currentSong != null) {
+                                    // Single album art
+                                    SingleAlbumArt(
+                                        song = currentSong,
+                                        isPlaying = isPlaying,
+                                        isBuffering = isBuffering,
+                                        onPlayPauseToggle = onPlayPauseToggle
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
                 
-                Slider(
-                    value = progressFraction,
-                    onValueChange = { fraction -> 
-                        onSeekTo((fraction * duration).toLong())
-                    },
-                    colors = SliderDefaults.colors(
-                        thumbColor = primaryColor,
-                        activeTrackColor = primaryColor,
-                        inactiveTrackColor = onSurfaceVariantColor.copy(alpha = 0.2f)
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Spacer(modifier = Modifier.height(16.dp))
                 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                // ========== 4. SONG INFO ==========
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = formatDuration(progress), 
-                        style = MaterialTheme.typography.labelMedium, 
-                        color = onSurfaceVariantColor
+                        text = currentSong?.title?.takeIf { !it.startsWith("Unknown") } ?: "Untitled",
+                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = onSurfaceColor,
+                        textAlign = TextAlign.Center
                     )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    val artistName = currentSong?.artist?.takeIf { !it.startsWith("Unknown") } ?: "Unknown Artist"
                     Text(
-                        text = formatDuration(duration), 
-                        style = MaterialTheme.typography.labelMedium, 
-                        color = onSurfaceVariantColor
+                        text = artistName,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = onSurfaceVariantColor,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable(enabled = artistName != "Unknown Artist") { onArtistClick(artistName) }
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        textAlign = TextAlign.Center
                     )
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // ========== 5. SLIDER PROGRESS (Video Player Style) ==========
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
+                ) {
+                    val progressFraction = if (duration > 0) progress.toFloat() / duration.toFloat() else 0f
+                    
+                    Slider(
+                        value = progressFraction,
+                        onValueChange = { fraction -> 
+                            onSeekTo((fraction * duration).toLong())
+                        },
+                        colors = SliderDefaults.colors(
+                            thumbColor = primaryColor,
+                            activeTrackColor = primaryColor,
+                            inactiveTrackColor = onSurfaceVariantColor.copy(alpha = 0.2f)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = formatDuration(progress), 
+                            style = MaterialTheme.typography.labelMedium, 
+                            color = onSurfaceVariantColor
+                        )
+                        Text(
+                            text = formatDuration(duration), 
+                            style = MaterialTheme.typography.labelMedium, 
+                            color = onSurfaceVariantColor
+                        )
+                    }
                 }
             }
             
-            Spacer(modifier = Modifier.height(16.dp))
-            
             // ========== 6. FLOATING TOOLBAR (Action Buttons) ==========
-            GesturePlayerToolbar(
-                shuffleModeEnabled = shuffleModeEnabled,
-                repeatMode = repeatMode,
-                isFavorite = isFavorite,
-                isDownloaded = isDownloaded,
-                isDownloading = isDownloading,
-                isLocalOriginal = isLocalOriginal,
-                onToggleShuffle = onToggleShuffle,
-                onToggleRepeat = onToggleRepeat,
-                onToggleFavorite = onToggleFavorite,
-                onToggleDownload = onToggleDownload,
-                primaryColor = primaryColor,
-                onSurfaceVariantColor = onSurfaceVariantColor
-            )
-            
-            Spacer(modifier = Modifier.height(40.dp))
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                GesturePlayerToolbar(
+                    shuffleModeEnabled = shuffleModeEnabled,
+                    repeatMode = repeatMode,
+                    isFavorite = isFavorite,
+                    isDownloaded = isDownloaded,
+                    isDownloading = isDownloading,
+                    isLocalOriginal = isLocalOriginal,
+                    onToggleShuffle = onToggleShuffle,
+                    onToggleRepeat = onToggleRepeat,
+                    onToggleFavorite = onToggleFavorite,
+                    onToggleDownload = onToggleDownload,
+                    primaryColor = primaryColor,
+                    onSurfaceVariantColor = onSurfaceVariantColor
+                )
+                
+                Spacer(modifier = Modifier.height(32.dp))
+            }
         }
     }
 }
@@ -514,7 +582,8 @@ private fun GestureAlbumCarousel(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        val albumSize = minOf(maxWidth, maxHeight) * 0.85f
+        // Use 98% of available space for HUGE album art
+        val albumSize = minOf(maxWidth, maxHeight) * 0.98f
         
         HorizontalUncontainedCarousel(
             state = carouselState,
@@ -619,7 +688,8 @@ private fun SingleAlbumArt(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        val albumSize = minOf(maxWidth, maxHeight) * 0.85f
+        // Use 98% of available space for HUGE album art
+        val albumSize = minOf(maxWidth, maxHeight) * 0.98f
         val cornerRadius = albumSize * 0.10f
         
         Surface(
