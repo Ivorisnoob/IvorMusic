@@ -22,6 +22,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.common.util.UnstableApi
 import com.ivor.ivormusic.data.VideoItem
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 
 /**
  * Content for the full Video Player Overlay.
@@ -46,11 +47,11 @@ fun VideoPlayerContent(
     val currentQuality by viewModel.currentQuality.collectAsState()
     val relatedVideos by viewModel.relatedVideos.collectAsState()
     val isAutoPlayEnabled by viewModel.isAutoPlayEnabled.collectAsState()
+    val isLooping by viewModel.isLooping.collectAsState()
     
     // Local UI State
     var showControls by remember { mutableStateOf(false) }
     var isFullscreen by remember { mutableStateOf(false) }
-    var isLooping by remember { mutableStateOf(false) } // TODO: Add to ViewModel if persistent loop needed
     
     // Progress polling (ViewModel doesn't poll, so we do it here or update ViewModel to poll)
     // Ideally ViewModel should emit progress, but for smoother slider we often poll in UI or VM. 
@@ -147,7 +148,7 @@ fun VideoPlayerContent(
                 onBack = { isFullscreen = false },
                 onFullscreenToggle = { isFullscreen = false },
                 onSettings = { showQualitySheet = true },
-                onLoopToggle = { isLooping = !isLooping },
+                onLoopToggle = { viewModel.toggleLooping() },
                 isAutoPlayEnabled = isAutoPlayEnabled,
                 onAutoPlayToggle = { viewModel.toggleAutoPlay() }
             )
@@ -185,7 +186,7 @@ fun VideoPlayerContent(
                         onBack = onBackClick,
                         onFullscreenToggle = { isFullscreen = true },
                         onSettings = { showQualitySheet = true },
-                        onLoopToggle = { isLooping = !isLooping },
+                        onLoopToggle = { viewModel.toggleLooping() },
                         isAutoPlayEnabled = isAutoPlayEnabled,
                         onAutoPlayToggle = { viewModel.toggleAutoPlay() }
                     )
@@ -223,9 +224,17 @@ fun VideoPlayerContent(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 
-                if (availableQualities.isEmpty()) {
+                if (isLoading) {
                     Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
+                    }
+                } else if (availableQualities.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                        Text(
+                            text = "No qualities available",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 } else {
                     availableQualities.forEach { quality ->

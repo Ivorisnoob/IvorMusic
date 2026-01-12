@@ -59,7 +59,14 @@ class VideoPlayerViewModel(application: android.app.Application) : AndroidViewMo
     private val _isAutoPlayEnabled = MutableStateFlow(false)
     val isAutoPlayEnabled: StateFlow<Boolean> = _isAutoPlayEnabled.asStateFlow()
 
+    private val _isLooping = MutableStateFlow(false)
+    val isLooping: StateFlow<Boolean> = _isLooping.asStateFlow()
+
     private var playbackReportJob: kotlinx.coroutines.Job? = null
+
+    // Error state
+    private val _playbackError = MutableStateFlow<Throwable?>(null)
+    val playbackError: StateFlow<Throwable?> = _playbackError.asStateFlow()
 
     init {
         // Initialize ExoPlayer
@@ -89,6 +96,11 @@ class VideoPlayerViewModel(application: android.app.Application) : AndroidViewMo
         _isAutoPlayEnabled.value = !_isAutoPlayEnabled.value
     }
 
+    fun toggleLooping() {
+        _isLooping.value = !_isLooping.value
+        _exoPlayer?.repeatMode = if (_isLooping.value) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
+    }
+
     fun playVideo(video: VideoItem) {
         if (_currentVideo.value?.videoId == video.videoId) {
             // Already playing this video, just expand
@@ -109,6 +121,7 @@ class VideoPlayerViewModel(application: android.app.Application) : AndroidViewMo
         // Parallel Task 1: Load Video and Start Playback ASAP
         viewModelScope.launch {
             try {
+                _playbackError.value = null // Clear previous error
                 _exoPlayer?.stop()
                 _exoPlayer?.clearMediaItems()
                 
@@ -129,14 +142,25 @@ class VideoPlayerViewModel(application: android.app.Application) : AndroidViewMo
                     // Fallback to legacy stream url if no qualities found
                     val streamUrl = youtubeRepository.getVideoStreamUrl(video.videoId)
                     if (streamUrl != null) {
+                        // Set legacy quality sentinel so UI reflects fallback state
+                        _currentQuality.value = VideoQuality(
+                            resolution = "Auto",
+                            url = streamUrl,
+                            isDASH = false,
+                            audioUrl = null
+                        )
                         val mediaItem = MediaItem.fromUri(streamUrl)
                         _exoPlayer?.setMediaItem(mediaItem)
                         _exoPlayer?.prepare()
+                        _isLoading.value = false
+                    } else {
+                        _playbackError.value = Exception("Unable to load video stream")
                         _isLoading.value = false
                     }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+                _playbackError.value = e
                 _isLoading.value = false
             }
         }
@@ -197,9 +221,20 @@ class VideoPlayerViewModel(application: android.app.Application) : AndroidViewMo
     }
     
     fun setQuality(quality: VideoQuality) {
-        val position = _exoPlayer?.currentPosition ?: 0L
+        val player = _exoPlayer ?: return
+        val position = player.currentPosition
         loadQuality(quality)
-        _exoPlayer?.seekTo(position)
+        
+        // Wait for player to be ready before seeking to preserved position
+        val listener = object : Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_READY) {
+                    player.seekTo(position)
+                    player.removeListener(this)
+                }
+            }
+        }
+        player.addListener(listener)
     }
 
     fun setExpanded(expanded: Boolean) {

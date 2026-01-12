@@ -65,7 +65,7 @@ fun VideoPlayerOverlay(
     // Update PiP Params (Active when video is present)
     LaunchedEffect(currentVideo, isPlaying) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && activity != null) {
-             val videoId = currentVideo!!.videoId
+             val videoId = currentVideo?.videoId ?: return@LaunchedEffect
              val reqCodePlay = (videoId + "play").hashCode()
              val reqCodePause = (videoId + "pause").hashCode()
              

@@ -568,7 +568,7 @@ fun VideoInfoSection(
                     val cleanedDescription = remember(video.description) {
                         if (video.description != null) {
                             androidx.core.text.HtmlCompat.fromHtml(
-                                video.description!!,
+                                video.description,
                                 androidx.core.text.HtmlCompat.FROM_HTML_MODE_LEGACY
                             ).toString().trim()
                         } else ""
@@ -787,7 +787,7 @@ fun ErrorOverlay(message: String) {
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(Icons.Rounded.Error, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(64.dp))
+            Icon(Icons.Rounded.Error, contentDescription = "Error", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(64.dp))
             Spacer(Modifier.height(16.dp))
             Text(message, color = Color.White)
         }

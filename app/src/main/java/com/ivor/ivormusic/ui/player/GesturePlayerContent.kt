@@ -555,7 +555,7 @@ private fun GesturePlayerToolbar(
                     contentColor = if (isFavorite) 
                         MaterialTheme.colorScheme.primary 
                     else 
-                        FloatingActionButtonDefaults.containerColor
+                        MaterialTheme.colorScheme.onSurfaceVariant
                 ) {
                     Icon(
                         imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,

@@ -907,7 +907,7 @@ class YouTubeRepository(private val context: Context) {
             if (videos.isNotEmpty()) return@withContext videos
             
             // Fallback to search for popular content
-            searchVideos("trending videos 2026")
+            searchVideos("trending videos ${java.time.Year.now().value}")
         } catch (e: Exception) {
             android.util.Log.e("YouTubeRepo", "Error fetching trending videos", e)
             // Fallback to search
