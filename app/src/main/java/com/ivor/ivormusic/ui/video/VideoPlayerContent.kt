@@ -60,11 +60,12 @@ fun VideoPlayerContent(
     var progress by remember { mutableFloatStateOf(0f) }
     
     val exoPlayer = viewModel.exoPlayer
+    val currentVideo = video
 
-    if (video == null || exoPlayer == null) return
+    if (currentVideo == null || exoPlayer == null) return
 
     LaunchedEffect(exoPlayer) {
-        while (true) {
+        while (isActive) {
             if (exoPlayer.duration > 0) {
                 duration = exoPlayer.duration
                 currentPosition = exoPlayer.currentPosition
@@ -140,7 +141,7 @@ fun VideoPlayerContent(
                 currentPosition = currentPosition,
                 duration = duration,
                 progress = progress,
-                videoTitle = video!!.title,
+                videoTitle = currentVideo.title,
                 onPlayPause = { viewModel.togglePlayPause() },
                 onSeek = { newProgress -> exoPlayer.seekTo((newProgress * duration).toLong()) },
                 onBack = { isFullscreen = false },
@@ -178,7 +179,7 @@ fun VideoPlayerContent(
                         currentPosition = currentPosition,
                         duration = duration,
                         progress = progress,
-                        videoTitle = video!!.title,
+                        videoTitle = currentVideo.title,
                         onPlayPause = { viewModel.togglePlayPause() },
                         onSeek = { newProgress -> exoPlayer.seekTo((newProgress * duration).toLong()) },
                         onBack = onBackClick,
@@ -192,7 +193,7 @@ fun VideoPlayerContent(
                 
                 // Info Area
                 VideoInfoSection(
-                    video = video!!,
+                    video = currentVideo,
                     relatedVideos = relatedVideos,
                     onVideoSelect = { viewModel.playVideo(it) },
                     modifier = Modifier

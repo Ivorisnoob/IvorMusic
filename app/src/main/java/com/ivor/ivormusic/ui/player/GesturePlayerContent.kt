@@ -40,6 +40,7 @@ import androidx.media3.common.Player
 import coil.compose.AsyncImage
 import com.ivor.ivormusic.data.Song
 import com.ivor.ivormusic.data.LyricsResult
+import java.util.Locale
 
 /**
  * Material 3 Expressive Gesture-Based Music Player
@@ -1218,5 +1219,5 @@ private fun formatDuration(durationMs: Long): String {
     val totalSeconds = durationMs / 1000
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
-    return String.format("%d:%02d", minutes, seconds)
+    return String.format(Locale.US, "%d:%02d", minutes, seconds)
 }

@@ -77,6 +77,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import com.ivor.ivormusic.data.VideoItem
+import java.util.Locale
 
 // VideoPlayerScreen function removed.
 // Logic moved to VideoPlayerViewModel and VideoPlayerContent.
@@ -799,5 +800,5 @@ private fun formatDuration(millis: Long): String {
     val h = seconds / 3600
     val m = (seconds % 3600) / 60
     val s = seconds % 60
-    return if (h > 0) String.format("%d:%02d:%02d", h, m, s) else String.format("%d:%02d", m, s)
+    return if (h > 0) String.format(Locale.US, "%d:%02d:%02d", h, m, s) else String.format(Locale.US, "%d:%02d", m, s)
 }

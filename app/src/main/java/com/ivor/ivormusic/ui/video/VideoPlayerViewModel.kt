@@ -17,6 +17,7 @@ import com.ivor.ivormusic.data.YouTubeRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 
 @UnstableApi
@@ -58,6 +59,8 @@ class VideoPlayerViewModel(application: android.app.Application) : AndroidViewMo
     private val _isAutoPlayEnabled = MutableStateFlow(false)
     val isAutoPlayEnabled: StateFlow<Boolean> = _isAutoPlayEnabled.asStateFlow()
 
+    private var playbackReportJob: kotlinx.coroutines.Job? = null
+
     init {
         // Initialize ExoPlayer
         _exoPlayer = ExoPlayer.Builder(context).build().apply {
@@ -98,6 +101,11 @@ class VideoPlayerViewModel(application: android.app.Application) : AndroidViewMo
         _isLoading.value = true
         _relatedVideos.value = emptyList() // Clear previous related
         
+        // Fetch video details once and share between parallel tasks
+        val detailsDeferred = viewModelScope.async {
+            youtubeRepository.getVideoDetails(video.videoId)
+        }
+        
         // Parallel Task 1: Load Video and Start Playback ASAP
         viewModelScope.launch {
             try {
@@ -105,7 +113,7 @@ class VideoPlayerViewModel(application: android.app.Application) : AndroidViewMo
                 _exoPlayer?.clearMediaItems()
                 
                 // Get stream qualities first to start playback
-                val details = youtubeRepository.getVideoDetails(video.videoId)
+                val details = detailsDeferred.await()
                 val qualities = details.qualities
                 _availableQualities.value = qualities
                 
@@ -136,7 +144,7 @@ class VideoPlayerViewModel(application: android.app.Application) : AndroidViewMo
         // Parallel Task 2: Load Metadata and Related Videos
         viewModelScope.launch {
             try {
-                val details = youtubeRepository.getVideoDetails(video.videoId)
+                val details = detailsDeferred.await()
                 
                 // Update video metadata (icon, subs, description) if available
                 if (details.updatedVideoItem != null) {
@@ -154,8 +162,9 @@ class VideoPlayerViewModel(application: android.app.Application) : AndroidViewMo
             }
         }
         
-        // Report Playback
-        viewModelScope.launch {
+        // Report Playback (cancel previous if user switched videos)
+        playbackReportJob?.cancel()
+        playbackReportJob = viewModelScope.launch {
             kotlinx.coroutines.delay(10000)
             if (_isPlaying.value) {
                 youtubeRepository.reportPlayback(video.videoId)
@@ -171,12 +180,13 @@ class VideoPlayerViewModel(application: android.app.Application) : AndroidViewMo
             mediaItemBuilder.setMimeType(MimeTypes.APPLICATION_MPD)
         }
         
-        if (quality.audioUrl != null) {
+        val audioUrl = quality.audioUrl
+        if (audioUrl != null) {
             val dataSourceFactory = DefaultDataSource.Factory(context)
             val videoSource = ProgressiveMediaSource.Factory(dataSourceFactory)
                 .createMediaSource(MediaItem.fromUri(quality.url))
             val audioSource = ProgressiveMediaSource.Factory(dataSourceFactory)
-                .createMediaSource(MediaItem.fromUri(quality.audioUrl!!))
+                .createMediaSource(MediaItem.fromUri(audioUrl))
             
             val mergingSource = MergingMediaSource(videoSource, audioSource)
             _exoPlayer?.setMediaSource(mergingSource)
