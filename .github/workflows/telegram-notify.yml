@@ -31,17 +31,17 @@ jobs:
         with:
           to: ${{ env.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          format: markdown
+          format: html
           message: |
-            🚀 *New Commit Pushed!*
+            🚀 <b>New Commit Pushed!</b>
             
-            📦 *Repository:* `${{ github.repository }}`
-            🌿 *Branch:* `${{ github.ref_name }}`
+            📦 <b>Repository:</b> ${{ github.repository }}
+            🌿 <b>Branch:</b> ${{ github.ref_name }}
             
-            📝 *Commit:* `${{ github.event.head_commit.message }}`
-            👤 *Author:* ${{ github.event.head_commit.author.name }}
+            📝 <b>Commit:</b> ${{ github.sha }}
+            👤 <b>Author:</b> ${{ github.event.head_commit.author.name }}
             
-            🔗 [View Commit](${{ github.event.head_commit.url }})
+            🔗 <a href="${{ github.event.head_commit.url }}">View Commit</a>
 
   # ============================================
   # 🔀 Pull Request Notifications
@@ -56,20 +56,20 @@ jobs:
         with:
           to: ${{ env.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          format: markdown
+          format: html
           message: |
-            🔀 *New Pull Request!*
+            🔀 <b>New Pull Request!</b>
             
-            📦 *Repository:* `${{ github.repository }}`
-            📋 *Title:* ${{ github.event.pull_request.title }}
-            👤 *Author:* @${{ github.event.pull_request.user.login }}
+            📦 <b>Repository:</b> ${{ github.repository }}
+            📋 <b>Title:</b> ${{ github.event.pull_request.title }}
+            👤 <b>Author:</b> ${{ github.event.pull_request.user.login }}
             
-            🌿 `${{ github.event.pull_request.head.ref }}` → `${{ github.event.pull_request.base.ref }}`
+            🌿 ${{ github.event.pull_request.head.ref }} → ${{ github.event.pull_request.base.ref }}
             
             ➕ ${{ github.event.pull_request.additions }} additions
             ➖ ${{ github.event.pull_request.deletions }} deletions
             
-            🔗 [View PR](${{ github.event.pull_request.html_url }})
+            🔗 <a href="${{ github.event.pull_request.html_url }}">View PR</a>
 
       - name: Send PR Merged Notification
         if: github.event.action == 'closed' && github.event.pull_request.merged == true
@@ -77,18 +77,18 @@ jobs:
         with:
           to: ${{ env.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          format: markdown
+          format: html
           message: |
-            ✅ *Pull Request Merged!*
+            ✅ <b>Pull Request Merged!</b>
             
-            📦 *Repository:* `${{ github.repository }}`
-            📋 *Title:* ${{ github.event.pull_request.title }}
-            👤 *Merged by:* @${{ github.event.sender.login }}
+            📦 <b>Repository:</b> ${{ github.repository }}
+            📋 <b>Title:</b> ${{ github.event.pull_request.title }}
+            👤 <b>Merged by:</b> ${{ github.event.sender.login }}
             
             ➕ ${{ github.event.pull_request.additions }} additions
             ➖ ${{ github.event.pull_request.deletions }} deletions
             
-            🔗 [View PR](${{ github.event.pull_request.html_url }})
+            🔗 <a href="${{ github.event.pull_request.html_url }}">View PR</a>
 
       - name: Send PR Closed Notification
         if: github.event.action == 'closed' && github.event.pull_request.merged == false
@@ -96,15 +96,15 @@ jobs:
         with:
           to: ${{ env.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          format: markdown
+          format: html
           message: |
-            ❌ *Pull Request Closed*
+            ❌ <b>Pull Request Closed</b>
             
-            📦 *Repository:* `${{ github.repository }}`
-            📋 *Title:* ${{ github.event.pull_request.title }}
-            👤 *Closed by:* @${{ github.event.sender.login }}
+            📦 <b>Repository:</b> ${{ github.repository }}
+            📋 <b>Title:</b> ${{ github.event.pull_request.title }}
+            👤 <b>Closed by:</b> ${{ github.event.sender.login }}
             
-            🔗 [View PR](${{ github.event.pull_request.html_url }})
+            🔗 <a href="${{ github.event.pull_request.html_url }}">View PR</a>
 
   # ============================================
   # 🐛 Issue Notifications
@@ -119,15 +119,15 @@ jobs:
         with:
           to: ${{ env.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          format: markdown
+          format: html
           message: |
-            🐛 *New Issue Opened!*
+            🐛 <b>New Issue Opened!</b>
             
-            📦 *Repository:* `${{ github.repository }}`
-            📋 *Title:* ${{ github.event.issue.title }}
-            👤 *Author:* @${{ github.event.issue.user.login }}
+            📦 <b>Repository:</b> ${{ github.repository }}
+            📋 <b>Title:</b> ${{ github.event.issue.title }}
+            👤 <b>Author:</b> ${{ github.event.issue.user.login }}
             
-            🔗 [View Issue](${{ github.event.issue.html_url }})
+            🔗 <a href="${{ github.event.issue.html_url }}">View Issue</a>
 
       - name: Send Issue Closed Notification
         if: github.event.action == 'closed'
@@ -135,15 +135,15 @@ jobs:
         with:
           to: ${{ env.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          format: markdown
+          format: html
           message: |
-            ✅ *Issue Closed!*
+            ✅ <b>Issue Closed!</b>
             
-            📦 *Repository:* `${{ github.repository }}`
-            📋 *Title:* ${{ github.event.issue.title }}
-            👤 *Closed by:* @${{ github.event.sender.login }}
+            📦 <b>Repository:</b> ${{ github.repository }}
+            📋 <b>Title:</b> ${{ github.event.issue.title }}
+            👤 <b>Closed by:</b> ${{ github.event.sender.login }}
             
-            🔗 [View Issue](${{ github.event.issue.html_url }})
+            🔗 <a href="${{ github.event.issue.html_url }}">View Issue</a>
 
   # ============================================
   # 💬 Issue Comment Notification
@@ -157,15 +157,15 @@ jobs:
         with:
           to: ${{ env.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          format: markdown
+          format: html
           message: |
-            💬 *New Comment!*
+            💬 <b>New Comment!</b>
             
-            📦 *Repository:* `${{ github.repository }}`
-            📋 *On:* ${{ github.event.issue.title }}
-            👤 *Author:* @${{ github.event.comment.user.login }}
+            📦 <b>Repository:</b> ${{ github.repository }}
+            📋 <b>On:</b> ${{ github.event.issue.title }}
+            👤 <b>Author:</b> ${{ github.event.comment.user.login }}
             
-            🔗 [View Comment](${{ github.event.comment.html_url }})
+            🔗 <a href="${{ github.event.comment.html_url }}">View Comment</a>
 
   # ============================================
   # ⭐ Star Notification
@@ -179,16 +179,16 @@ jobs:
         with:
           to: ${{ env.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          format: markdown
+          format: html
           message: |
-            ⭐ *New Star!*
+            ⭐ <b>New Star!</b>
             
-            🎉 @${{ github.event.sender.login }} just starred the repo!
+            🎉 ${{ github.event.sender.login }} just starred the repo!
             
-            📦 *Repository:* `${{ github.repository }}`
-            ⭐ *Total Stars:* ${{ github.event.repository.stargazers_count }}
+            📦 <b>Repository:</b> ${{ github.repository }}
+            ⭐ <b>Total Stars:</b> ${{ github.event.repository.stargazers_count }}
             
-            🔗 [View Repo](https://github.com/${{ github.repository }})
+            🔗 <a href="https://github.com/${{ github.repository }}">View Repo</a>
 
   # ============================================
   # 🍴 Fork Notification
@@ -202,17 +202,17 @@ jobs:
         with:
           to: ${{ env.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          format: markdown
+          format: html
           message: |
-            🍴 *Repository Forked!*
+            🍴 <b>Repository Forked!</b>
             
-            👤 @${{ github.event.sender.login }} forked the repo!
+            👤 ${{ github.event.sender.login }} forked the repo!
             
-            📦 *Original:* `${{ github.repository }}`
-            📦 *Fork:* `${{ github.event.forkee.full_name }}`
-            🍴 *Total Forks:* ${{ github.event.repository.forks_count }}
+            📦 <b>Original:</b> ${{ github.repository }}
+            📦 <b>Fork:</b> ${{ github.event.forkee.full_name }}
+            🍴 <b>Total Forks:</b> ${{ github.event.repository.forks_count }}
             
-            🔗 [View Fork](${{ github.event.forkee.html_url }})
+            🔗 <a href="${{ github.event.forkee.html_url }}">View Fork</a>
 
   # ============================================
   # 📦 Release Notification
@@ -226,14 +226,14 @@ jobs:
         with:
           to: ${{ env.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          format: markdown
+          format: html
           message: |
-            🎉 *New Release Published!*
+            🎉 <b>New Release Published!</b>
             
-            📦 *Repository:* `${{ github.repository }}`
-            🏷️ *Version:* `${{ github.event.release.tag_name }}`
-            📋 *Name:* ${{ github.event.release.name }}
+            📦 <b>Repository:</b> ${{ github.repository }}
+            🏷️ <b>Version:</b> ${{ github.event.release.tag_name }}
+            📋 <b>Name:</b> ${{ github.event.release.name }}
             
-            👤 *Author:* @${{ github.event.release.author.login }}
+            👤 <b>Author:</b> ${{ github.event.release.author.login }}
             
-            🔗 [Download Release](${{ github.event.release.html_url }})
+            🔗 <a href="${{ github.event.release.html_url }}">Download Release</a>
