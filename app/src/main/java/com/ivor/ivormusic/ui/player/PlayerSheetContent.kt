@@ -429,7 +429,7 @@ private fun ExpressiveNowPlayingView(
 
                 LinearWavyProgressIndicator(
                     progress = { animatedProgress },
-                    modifier = Modifier.fillMaxWidth().height(28.dp),
+                    modifier = Modifier.fillMaxWidth().height(14.dp),
                     stroke = thickStroke,
                     trackStroke = thickStroke,
                     color = primaryColor,

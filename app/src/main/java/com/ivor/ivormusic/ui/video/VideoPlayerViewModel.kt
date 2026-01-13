@@ -14,6 +14,7 @@ import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import com.ivor.ivormusic.data.VideoItem
 import com.ivor.ivormusic.data.VideoQuality
 import com.ivor.ivormusic.data.YouTubeRepository
+import com.ivor.ivormusic.data.ThemePreferences
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,6 +26,7 @@ class VideoPlayerViewModel(application: android.app.Application) : AndroidViewMo
 
     private val context: Context get() = getApplication()
     private val youtubeRepository = YouTubeRepository(context)
+    private val themePreferences = ThemePreferences(context)
 
     // Player Instance
     private var _exoPlayer: ExoPlayer? = null
@@ -116,22 +118,17 @@ class VideoPlayerViewModel(application: android.app.Application) : AndroidViewMo
         _isExpanded.value = true
         _isLoading.value = true
         _relatedVideos.value = emptyList() // Clear previous related
+        _playbackError.value = null // Clear previous error
         
-        // Fetch video details once and share between parallel tasks
-        val detailsDeferred = viewModelScope.async {
-            youtubeRepository.getVideoDetails(video.videoId)
-        }
-        
-        // Parallel Task 1: Load Video and Start Playback ASAP
+        // ========== PHASE 1: START PLAYBACK ASAP (fast) ==========
+        // Uses lightweight getVideoStreamQualities() which ONLY fetches stream URLs
         viewModelScope.launch {
             try {
-                _playbackError.value = null // Clear previous error
                 _exoPlayer?.stop()
                 _exoPlayer?.clearMediaItems()
                 
-                // Get stream qualities first to start playback
-                val details = detailsDeferred.await()
-                val qualities = details.qualities
+                // FAST: Get stream URLs only (no metadata, no related, no channel avatar)
+                val qualities = youtubeRepository.getVideoStreamQualities(video.videoId)
                 _availableQualities.value = qualities
                 
                 if (qualities.isNotEmpty()) {
@@ -141,12 +138,11 @@ class VideoPlayerViewModel(application: android.app.Application) : AndroidViewMo
                         ?: qualities.first()
                         
                     loadQuality(bestQuality)
-                    _isLoading.value = false // Set loading to false once playback starts
+                    _isLoading.value = false // ✅ Playback starting NOW!
                 } else {
-                    // Fallback to legacy stream url if no qualities found
+                    // Fallback to legacy stream URL
                     val streamUrl = youtubeRepository.getVideoStreamUrl(video.videoId)
                     if (streamUrl != null) {
-                        // Set legacy quality sentinel so UI reflects fallback state
                         _currentQuality.value = VideoQuality(
                             resolution = "Auto",
                             url = streamUrl,
@@ -168,35 +164,37 @@ class VideoPlayerViewModel(application: android.app.Application) : AndroidViewMo
                 _isLoading.value = false
             }
         }
-
-        // Parallel Task 2: Load Metadata and Related Videos
+        
+        // ========== PHASE 2: LOAD METADATA IN BACKGROUND ==========
+        // Runs in parallel - video is already playing by now
         viewModelScope.launch {
-            // Wrap in try-catch: if Task 1 fails detailsDeferred, this will also fail
-            val details = try {
-                detailsDeferred.await()
+            try {
+                val details = youtubeRepository.getVideoDetails(video.videoId)
+                
+                // Update metadata (channel icon, description, subscriber count)
+                if (details.updatedVideoItem != null) {
+                    _currentVideo.value = details.updatedVideoItem
+                }
+                
+                // Update related videos
+                _relatedVideos.value = details.relatedVideos
+                
+                // Update qualities if Phase 1 somehow missed them
+                if (_availableQualities.value.isEmpty() && details.qualities.isNotEmpty()) {
+                    _availableQualities.value = details.qualities
+                }
             } catch (e: Exception) {
-                // Task 1 already handles the error, just exit gracefully
-                return@launch
-            }
-            
-            // Update video metadata (icon, subs, description) if available
-            if (details.updatedVideoItem != null) {
-                _currentVideo.value = details.updatedVideoItem
-            }
-            
-            _relatedVideos.value = details.relatedVideos
-            
-            // If Task 1 failed to set qualities (race condition), set them here
-            if (_availableQualities.value.isEmpty()) {
-                _availableQualities.value = details.qualities
+                // Phase 2 errors are non-critical - playback already started
+                android.util.Log.w("VideoPlayerVM", "Failed to load video metadata", e)
             }
         }
         
         // Report Playback (cancel previous if user switched videos)
+        // Only report if saveVideoHistory setting is enabled
         playbackReportJob?.cancel()
         playbackReportJob = viewModelScope.launch {
             kotlinx.coroutines.delay(10000)
-            if (_isPlaying.value) {
+            if (_isPlaying.value && themePreferences.saveVideoHistory.value) {
                 youtubeRepository.reportPlayback(video.videoId)
             }
         }

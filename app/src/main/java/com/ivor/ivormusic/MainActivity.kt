@@ -40,6 +40,7 @@ class MainActivity : ComponentActivity() {
             val ambientBackground by themeViewModel.ambientBackground.collectAsState()
             val videoMode by themeViewModel.videoMode.collectAsState()
             val playerStyle by themeViewModel.playerStyle.collectAsState()
+            val saveVideoHistory by themeViewModel.saveVideoHistory.collectAsState()
             
             val isSystemDark = isSystemInDarkTheme()
             val isDarkTheme = remember(themeMode, isSystemDark) {
@@ -66,7 +67,9 @@ class MainActivity : ComponentActivity() {
                     videoMode = videoMode,
                     onVideoModeToggle = { themeViewModel.setVideoMode(it) },
                     playerStyle = playerStyle,
-                    onPlayerStyleChange = { themeViewModel.setPlayerStyle(it) }
+                    onPlayerStyleChange = { themeViewModel.setPlayerStyle(it) },
+                    saveVideoHistory = saveVideoHistory,
+                    onSaveVideoHistoryToggle = { themeViewModel.setSaveVideoHistory(it) }
                 )
             }
         }
@@ -86,7 +89,9 @@ fun MusicApp(
     videoMode: Boolean,
     onVideoModeToggle: (Boolean) -> Unit,
     playerStyle: PlayerStyle,
-    onPlayerStyleChange: (PlayerStyle) -> Unit
+    onPlayerStyleChange: (PlayerStyle) -> Unit,
+    saveVideoHistory: Boolean,
+    onSaveVideoHistoryToggle: (Boolean) -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val navController = rememberNavController()
@@ -129,6 +134,8 @@ fun MusicApp(
                     onVideoModeToggle = onVideoModeToggle,
                     playerStyle = playerStyle,
                     onPlayerStyleChange = onPlayerStyleChange,
+                    saveVideoHistory = saveVideoHistory,
+                    onSaveVideoHistoryToggle = onSaveVideoHistoryToggle,
                     onLogoutClick = { 
                         homeViewModel.logout()
                     },

@@ -12,8 +12,8 @@ android {
         applicationId = "com.ivor.ivormusic"
         minSdk = 31
         targetSdk = 36
-        versionCode = 6
-        versionName = "1.5"
+        versionCode = 10
+        versionName = "2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

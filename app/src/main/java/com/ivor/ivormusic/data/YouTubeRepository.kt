@@ -1652,6 +1652,59 @@ class YouTubeRepository(private val context: Context) {
     }
 
     /**
+     * FAST: Get only video stream qualities for immediate playback.
+     * Does NOT fetch channel avatar, related videos, or extra metadata.
+     * Use this to start playback ASAP, then call getVideoDetails() for the rest.
+     */
+    suspend fun getVideoStreamQualities(videoId: String): List<VideoQuality> = withContext(Dispatchers.IO) {
+        try {
+            val streamUrl = "https://www.youtube.com/watch?v=$videoId"
+            val ytService = ServiceList.all().find { it.serviceInfo.name == "YouTube" } 
+                ?: return@withContext emptyList()
+            val streamExtractor = ytService.getStreamExtractor(streamUrl)
+            streamExtractor.fetchPage()
+            
+            val qualities = mutableListOf<VideoQuality>()
+            
+            // 1. DASH/HLS (best quality, adaptive)
+            streamExtractor.dashMpdUrl?.takeIf { it.isNotBlank() }?.let { url ->
+                qualities.add(VideoQuality("Auto (Best)", url, "DASH", true))
+            } ?: streamExtractor.hlsUrl?.takeIf { it.isNotBlank() }?.let { url ->
+                qualities.add(VideoQuality("Auto (HLS)", url, "HLS", true))
+            }
+            
+            // 2. Adaptive Streams (video + separate audio)
+            val videoOnlyStreams = streamExtractor.videoOnlyStreams
+            val audioStreams = streamExtractor.audioStreams
+            val bestAudio = audioStreams.maxByOrNull { it.averageBitrate }
+            
+            if (bestAudio != null) {
+                qualities.addAll(videoOnlyStreams
+                    .mapNotNull { stream ->
+                        val res = stream.resolution ?: return@mapNotNull null
+                        val url = stream.content ?: return@mapNotNull null
+                        VideoQuality(res, url, stream.format?.name, false, bestAudio.content)
+                    }
+                )
+            }
+
+            // 3. Muxed Streams (video + audio combined)
+            qualities.addAll(streamExtractor.videoStreams
+                .mapNotNull { stream ->
+                    val res = stream.resolution ?: return@mapNotNull null
+                    val url = stream.content ?: return@mapNotNull null
+                    VideoQuality(res, url, stream.format?.name, false)
+                }
+            )
+            
+            qualities.distinctBy { it.resolution }
+        } catch (e: Exception) {
+            android.util.Log.e("YouTubeRepo", "Error getting video stream qualities", e)
+            emptyList()
+        }
+    }
+
+    /**
      * Get video details including qualities and related videos.
      */
     suspend fun getVideoDetails(videoId: String): VideoDetails = withContext(Dispatchers.IO) {

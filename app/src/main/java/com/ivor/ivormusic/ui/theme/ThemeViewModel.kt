@@ -18,6 +18,7 @@ class ThemeViewModel(application: Application) : AndroidViewModel(application) {
     val ambientBackground: StateFlow<Boolean> = themePreferences.ambientBackground
     val videoMode: StateFlow<Boolean> = themePreferences.videoMode
     val playerStyle: StateFlow<PlayerStyle> = themePreferences.playerStyle
+    val saveVideoHistory: StateFlow<Boolean> = themePreferences.saveVideoHistory
 
     fun setThemeMode(mode: ThemeMode) {
         themePreferences.setThemeMode(mode)
@@ -49,5 +50,13 @@ class ThemeViewModel(application: Application) : AndroidViewModel(application) {
     
     fun setPlayerStyle(style: PlayerStyle) {
         themePreferences.setPlayerStyle(style)
+    }
+    
+    fun setSaveVideoHistory(enabled: Boolean) {
+        themePreferences.setSaveVideoHistory(enabled)
+    }
+    
+    fun toggleSaveVideoHistory() {
+        themePreferences.toggleSaveVideoHistory()
     }
 }

@@ -232,7 +232,7 @@ fun PlayerScreen(
                         progress = { animatedProgress },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(24.dp),
+                            .height(12.dp),
                         stroke = thickStroke,
                         trackStroke = thickStroke,
                         color = primaryColor,

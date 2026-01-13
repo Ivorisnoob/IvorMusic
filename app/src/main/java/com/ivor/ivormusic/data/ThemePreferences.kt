@@ -30,6 +30,9 @@ class ThemePreferences(context: Context) {
     
     private val _playerStyle = MutableStateFlow(getPlayerStylePreference())
     val playerStyle: StateFlow<PlayerStyle> = _playerStyle.asStateFlow()
+    
+    private val _saveVideoHistory = MutableStateFlow(getSaveVideoHistoryPreference())
+    val saveVideoHistory: StateFlow<Boolean> = _saveVideoHistory.asStateFlow()
 
     companion object {
         private const val PREFS_NAME = "ivor_music_theme_prefs"
@@ -39,6 +42,7 @@ class ThemePreferences(context: Context) {
         private const val KEY_AMBIENT_BACKGROUND = "ambient_background"
         private const val KEY_VIDEO_MODE = "video_mode"
         private const val KEY_PLAYER_STYLE = "player_style"
+        private const val KEY_SAVE_VIDEO_HISTORY = "save_video_history"
     }
 
     /**
@@ -157,6 +161,28 @@ class ThemePreferences(context: Context) {
     fun setPlayerStyle(style: PlayerStyle) {
         prefs.edit().putString(KEY_PLAYER_STYLE, style.name).apply()
         _playerStyle.value = style
+    }
+    
+    /**
+     * Get the stored save video history preference. Defaults to true (save history).
+     */
+    private fun getSaveVideoHistoryPreference(): Boolean {
+        return prefs.getBoolean(KEY_SAVE_VIDEO_HISTORY, true)
+    }
+    
+    /**
+     * Save video history preference and update the flow.
+     */
+    fun setSaveVideoHistory(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_SAVE_VIDEO_HISTORY, enabled).apply()
+        _saveVideoHistory.value = enabled
+    }
+    
+    /**
+     * Toggle save video history setting.
+     */
+    fun toggleSaveVideoHistory() {
+        setSaveVideoHistory(!_saveVideoHistory.value)
     }
 }
 

@@ -325,15 +325,18 @@ private fun GestureNowPlayingView(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Top
             ) {
+                // Push album down slightly
+                Spacer(modifier = Modifier.height(16.dp))
+                
                 // ========== 3. ALBUM ART / LYRICS (Crossfade) ==========
                 BoxWithConstraints(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 8.dp),
+                        .padding(horizontal = 4.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     // Use most of available width for HUGE album art - ensure positive size
-                    val albumSize = (maxWidth - 32.dp).coerceAtLeast(1.dp)
+                    val albumSize = (maxWidth - 16.dp).coerceAtLeast(1.dp)
                     
                     Box(
                         modifier = Modifier.size(albumSize),
@@ -441,7 +444,7 @@ private fun GestureNowPlayingView(
                             Box(contentAlignment = Alignment.Center) {
                                 LinearWavyProgressIndicator(
                                     progress = { animatedProgress },
-                                    modifier = Modifier.fillMaxWidth().height(28.dp),
+                                    modifier = Modifier.fillMaxWidth().height(14.dp),
                                     stroke = thickStroke,
                                     trackStroke = thickStroke,
                                     color = primaryColor,

@@ -161,6 +161,8 @@ fun SettingsScreen(
     onVideoModeToggle: (Boolean) -> Unit,
     playerStyle: PlayerStyle,
     onPlayerStyleChange: (PlayerStyle) -> Unit,
+    saveVideoHistory: Boolean,
+    onSaveVideoHistoryToggle: (Boolean) -> Unit,
     onLogoutClick: () -> Unit,
     onBackClick: () -> Unit,
     contentPadding: PaddingValues = PaddingValues()
@@ -312,6 +314,15 @@ fun SettingsScreen(
                                 textColor = textColor,
                                 secondaryTextColor = secondaryTextColor,
                                 iconTint = Color(0xFF4CAF50)
+                            )
+                            SettingsDivider()
+                            // Save Video History Toggle
+                            ExpressiveSaveHistoryToggleItem(
+                                enabled = saveVideoHistory,
+                                onToggle = onSaveVideoHistoryToggle,
+                                textColor = textColor,
+                                secondaryTextColor = secondaryTextColor,
+                                accentColor = Color(0xFFFF0000) // YouTube red
                             )
                             SettingsDivider()
                             ExpressiveSettingsItem(
@@ -887,6 +898,86 @@ private fun ExpressiveVideoModeToggleItem(
                 }
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ExpressiveSaveHistoryToggleItem(
+    enabled: Boolean,
+    onToggle: (Boolean) -> Unit,
+    textColor: Color,
+    secondaryTextColor: Color,
+    accentColor: Color
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.97f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = "scale"
+    )
+    
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .scale(scale)
+            .clip(RoundedCornerShape(18.dp))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null
+            ) { onToggle(!enabled) }
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Icon
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(accentColor.copy(alpha = 0.12f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.CheckCircle,
+                contentDescription = null,
+                tint = accentColor,
+                modifier = Modifier.size(26.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        // Text
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "Save Watch History",
+                color = textColor,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = if (enabled) "Videos saved to your YouTube account" else "Watch history not saved",
+                color = secondaryTextColor,
+                fontSize = 13.sp
+            )
+        }
+
+        // Switch
+        Switch(
+            checked = enabled,
+            onCheckedChange = onToggle,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = accentColor,
+                uncheckedThumbColor = Color.White,
+                uncheckedTrackColor = secondaryTextColor.copy(alpha = 0.3f),
+                uncheckedBorderColor = Color.Transparent,
+                checkedBorderColor = Color.Transparent
+            )
+        )
     }
 }
 
