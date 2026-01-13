@@ -85,8 +85,8 @@ class VideoPlayerViewModel(application: android.app.Application) : AndroidViewMo
                     if (playbackState == Player.STATE_ENDED) {
                         if (_isAutoPlayEnabled.value) {
                             val nextVideo = _relatedVideos.value.firstOrNull()
-                            if (nextVideo != null) {
-                                // Dispatch to main thread via viewModelScope
+                            // Guard: ensure ViewModel/player is still valid before launching
+                            if (nextVideo != null && _exoPlayer != null) {
                                 viewModelScope.launch { playVideo(nextVideo) }
                             }
                         }
@@ -171,22 +171,24 @@ class VideoPlayerViewModel(application: android.app.Application) : AndroidViewMo
 
         // Parallel Task 2: Load Metadata and Related Videos
         viewModelScope.launch {
-            try {
-                val details = detailsDeferred.await()
-                
-                // Update video metadata (icon, subs, description) if available
-                if (details.updatedVideoItem != null) {
-                    _currentVideo.value = details.updatedVideoItem
-                }
-                
-                _relatedVideos.value = details.relatedVideos
-                
-                // If Task 1 failed to set qualities (race condition), set them here
-                if (_availableQualities.value.isEmpty()) {
-                    _availableQualities.value = details.qualities
-                }
+            // Wrap in try-catch: if Task 1 fails detailsDeferred, this will also fail
+            val details = try {
+                detailsDeferred.await()
             } catch (e: Exception) {
-                e.printStackTrace()
+                // Task 1 already handles the error, just exit gracefully
+                return@launch
+            }
+            
+            // Update video metadata (icon, subs, description) if available
+            if (details.updatedVideoItem != null) {
+                _currentVideo.value = details.updatedVideoItem
+            }
+            
+            _relatedVideos.value = details.relatedVideos
+            
+            // If Task 1 failed to set qualities (race condition), set them here
+            if (_availableQualities.value.isEmpty()) {
+                _availableQualities.value = details.qualities
             }
         }
         

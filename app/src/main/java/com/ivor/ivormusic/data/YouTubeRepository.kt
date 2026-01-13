@@ -13,6 +13,7 @@ import org.schabi.newpipe.extractor.stream.StreamInfoItem
 import org.schabi.newpipe.extractor.playlist.PlaylistInfo
 import org.schabi.newpipe.extractor.playlist.PlaylistInfoItem
 import org.schabi.newpipe.extractor.InfoItem
+import org.schabi.newpipe.extractor.stream.StreamType
 import org.schabi.newpipe.extractor.linkhandler.SearchQueryHandler
 import okhttp3.OkHttpClient
 import okhttp3.MediaType.Companion.toMediaType
@@ -848,7 +849,7 @@ class YouTubeRepository(private val context: Context) {
                         durationSeconds = item.duration,
                         viewCount = item.viewCount,
                         uploadedDate = item.textualUploadDate,
-                        isLive = item.isShortFormContent.not() && item.duration <= 0,
+                        isLive = item.streamType == StreamType.LIVE_STREAM || item.streamType == StreamType.AUDIO_LIVE_STREAM,
                         subscriberCount = null
                     )
                 } catch (e: Exception) {
@@ -915,7 +916,7 @@ class YouTubeRepository(private val context: Context) {
                         durationSeconds = item.duration,
                         viewCount = item.viewCount,
                         uploadedDate = item.textualUploadDate,
-                        isLive = item.isShortFormContent.not() && item.duration <= 0,
+                        isLive = item.streamType == StreamType.LIVE_STREAM || item.streamType == StreamType.AUDIO_LIVE_STREAM,
                         subscriberCount = null
                     )
                 } catch (e: Exception) {
@@ -1313,7 +1314,7 @@ class YouTubeRepository(private val context: Context) {
                                            channelName.trim() != "."
                         
                         if (contentId.isNotEmpty() && title != "Unknown Title" && 
-                            !thumbnailUrl.isNullOrBlank()) {
+                            !thumbnailUrl.isNullOrBlank() && isValidChannel) {
                             videos.add(VideoItem(
                                 videoId = contentId,
                                 title = title,
