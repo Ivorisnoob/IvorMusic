@@ -1,53 +1,195 @@
-# The Music App
+<p align="center">
+  <img src="app/src/main/res/mipmap-xxxhdpi/ic_launcher.png" width="120" alt="The Music App Logo"/>
+</p>
 
-A modern, feature-rich Android music player that seamlessly integrates with YouTube Music. Built entirely with Kotlin and Jetpack Compose, IvorMusic delivers a premium listening experience with Material 3 Expressive design, bringing personalized recommendations, playlist management, and high-quality streaming without requiring official API keys.
+<h1 align="center">The Music App</h1>
+
+<p align="center">
+  <b>A modern, feature-rich Android music & video player powered by YouTube Music</b>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Platform-Android-green?style=for-the-badge&logo=android" alt="Platform"/>
+  <img src="https://img.shields.io/badge/Min%20SDK-31-blue?style=for-the-badge" alt="Min SDK"/>
+  <img src="https://img.shields.io/badge/Kotlin-100%25-purple?style=for-the-badge&logo=kotlin" alt="Kotlin"/>
+  <img src="https://img.shields.io/badge/Jetpack%20Compose-UI-blue?style=for-the-badge&logo=jetpackcompose" alt="Compose"/>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/github/stars/Ivorisnoob/TheMusicApp?style=social" alt="Stars"/>
+  <img src="https://img.shields.io/github/forks/Ivorisnoob/TheMusicApp?style=social" alt="Forks"/>
+</p>
+
+---
+
+Built entirely with **Kotlin** and **Jetpack Compose**, The Music App delivers a premium music and video experience with **Material 3 Expressive** design. Stream music, watch videos, and enjoy personalized recommendations—all without requiring official API keys.
 
 ## Screenshots
 
-### Home Screen
+### Core Screens
 
-| Light Mode | Dark Mode |
-|:----------:|:---------:|
-| ![Home Screen - Light Mode](screenshots/Home_Light.png) | ![Home Screen - Dark Mode](screenshots/Home_Dark.png) |
+<table>
+  <tr>
+    <td align="center"><b>Home - Light</b></td>
+    <td align="center"><b>Home - Dark</b></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/Home_Light.png" width="250"/></td>
+    <td><img src="screenshots/Home_Dark.png" width="250"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Search - Light</b></td>
+    <td align="center"><b>Search - Dark</b></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/Search_Light.png" width="250"/></td>
+    <td><img src="screenshots/Search_Dark.png" width="250"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Library - Light</b></td>
+    <td align="center"><b>Library - Dark</b></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/Library_Light.png" width="250"/></td>
+    <td><img src="screenshots/Library_Dark.png" width="250"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Settings - Light</b></td>
+    <td align="center"><b>Settings - Dark</b></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/Settings_Light.png" width="250"/></td>
+    <td><img src="screenshots/Settings_Dark.png" width="250"/></td>
+  </tr>
+</table>
 
-### Player Screen
+### Music Player
 
-| Light Mode | Dark Mode |
-|:----------:|:---------:|
-| ![Player Screen - Light Mode](screenshots/Player_Light.png) | ![Player Screen - Dark Mode](screenshots/Player_Dark.png) |
+<table>
+  <tr>
+    <td align="center"><b>Now Playing - Light</b></td>
+    <td align="center"><b>Now Playing - Dark</b></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/Player_Light.png" width="250"/></td>
+    <td><img src="screenshots/Player_Dark.png" width="250"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Gesture Player - Light</b></td>
+    <td align="center"><b>Gesture Player - Dark</b></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/GesturePlayer_Light.png" width="250"/></td>
+    <td><img src="screenshots/GesturePlayer_Dark.png" width="250"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Queue - Light</b></td>
+    <td align="center"><b>Queue - Dark</b></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/Queue_Light.png" width="250"/></td>
+    <td><img src="screenshots/Queue_Dark.png" width="250"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Lyrics - Light</b></td>
+    <td align="center"><b>Lyrics - Dark</b></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/Lyrics_Light.png" width="250"/></td>
+    <td><img src="screenshots/Lyrics_Dark.png" width="250"/></td>
+  </tr>
+</table>
+
+### Video Player
+
+<table>
+  <tr>
+    <td align="center"><b>Video Player - Light</b></td>
+    <td align="center"><b>Video Player - Dark</b></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/Video_Light.png" width="250"/></td>
+    <td><img src="screenshots/Video_Dark.png" width="250"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Video Home - Light</b></td>
+    <td align="center"><b>Video Home - Dark</b></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/VideoHome_Light.png" width="250"/></td>
+    <td><img src="screenshots/VideoHome_Dark.png" width="250"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Mini Video Player</b></td>
+    <td align="center"><b>Video History</b></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/MiniVideoPlayer.png" width="250"/></td>
+    <td><img src="screenshots/VideoHistory.png" width="250"/></td>
+  </tr>
+</table>
+
+### Downloads & Auth
+
+<table>
+  <tr>
+    <td align="center"><b>Downloads</b></td>
+    <td align="center"><b>YouTube Sign In</b></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/Downloads.png" width="250"/></td>
+    <td><img src="screenshots/SignIn.png" width="250"/></td>
+  </tr>
+</table>
+
+---
 
 ## Features
 
 ### YouTube Music Integration
-- **Search**: Find songs, albums, artists, and playlists directly from the YouTube Music catalog
-- **Personalized Recommendations**: Quick picks and curated suggestions based on your listening history
-- **Playlist Access**: Browse and play your YouTube Music playlists including "Liked Songs" and "Supermix"
-- **History Sync**: Tracks you play are synchronized with your YouTube Music history
-- **Like/Unlike**: Heart your favorite songs directly from the player
+- **Search** — Find songs, albums, artists, and playlists from the YouTube Music catalog
+- **Personalized Recommendations** — Quick picks and curated suggestions based on your history
+- **Playlist Access** — Browse and play your playlists including "Liked Songs" and "Supermix"
+- **History Sync** — Tracks you play sync with your YouTube Music history
+- **Like/Unlike** — Heart your favorite songs directly from the player
+
+### Video Player (NEW!)
+- **In-App Video Playback** — Watch music videos without leaving the app
+- **Picture-in-Picture** — Continue watching in a floating window
+- **Quality Selection** — Choose from available qualities (1080p, 720p, etc.)
+- **Mini Player** — Collapse to a mini bar while browsing
+- **Related Videos** — Discover more content with smart recommendations
+- **Auto-Play** — Seamlessly play the next video
 
 ### Playback
-- **High-Quality Streaming**: Optimized audio streams using NewPipe Extractor for reliable playback
-- **Queue Management**: Full queue control with add, reorder, and infinite recommendations loading
-- **Shuffle and Repeat**: Standard shuffle and repeat modes (off, one, all)
-- **Media Session**: System-wide playback controls via notification and lock screen
-- **Local Music Support**: Optional playback of locally stored audio files
+- **High-Quality Streaming** — Optimized audio via NewPipe Extractor
+- **Queue Management** — Full queue control with drag-to-reorder
+- **Shuffle & Repeat** — Standard playback modes (off, one, all)
+- **Media Session** — System-wide controls via notification & lock screen
+- **Local Music Support** — Optional playback of local audio files
+
+### Downloads (NEW!)
+- **Download Songs** — Save tracks for offline listening
+- **Download Playlists** — Batch download entire playlists
+- **Download Manager** — Track progress and manage downloads
 
 ### User Interface
-- **Material 3 Expressive**: Implements the latest Material Design 3 with expressive shape morphing, spring physics animations, and dynamic color schemes
-- **Dynamic Theming**: Album artwork automatically influences the player color palette
-- **Light, Dark, and System Themes**: Choose your preferred appearance
-- **Full-bleed Album Art**: Immersive player experience with large artwork display
-- **Animated Transitions**: Smooth, physics-based animations throughout the UI
-- **Bottom Sheet Player**: Expandable player with gesture support
+- **Material 3 Expressive** — Shape morphing, spring physics, dynamic colors
+- **Dynamic Theming** — Album artwork influences the color palette
+- **Light, Dark & System** — Choose your preferred theme
+- **Gesture-Based Navigation** — Intuitive swipe controls
+- **Animated Transitions** — Smooth, physics-based animations
 
 ### Library
-- **YouTube Playlists**: Access all your saved playlists with cover art and track counts
-- **Liked Songs**: Dedicated section for your hearted tracks
-- **Quick Access Cards**: Fast navigation to frequently used sections
+- **YouTube Playlists** — Access all your saved playlists with cover art
+- **Liked Songs** — Dedicated section for hearted tracks
+- **Quick Access Cards** — Fast navigation to frequent sections
 
 ### Authentication
-- **Cookie-based Authentication**: Simple sign-in via embedded WebView to access personalized content
-- **Secure Storage**: Credentials stored securely using Android EncryptedSharedPreferences
+- **Cookie-Based Auth** — Sign in via embedded WebView
+- **Secure Storage** — Credentials stored with EncryptedSharedPreferences
+
+---
 
 ## Technical Stack
 
@@ -64,79 +206,118 @@ A modern, feature-rich Android music player that seamlessly integrates with YouT
 | Min SDK | 31 (Android 12) |
 | Target SDK | 36 |
 
+---
+
 ## Project Structure
 
 ```
 app/src/main/java/com/ivor/ivormusic/
-├── data/                    # Data layer (repositories, models, session management)
-│   ├── YouTubeRepository    # YouTube Music API integration via NewPipe
-│   ├── SessionManager       # Cookie and authentication management
-│   └── Song, Playlist       # Data models
+├── data/                    # Data layer
+│   ├── YouTubeRepository    # YouTube Music API via NewPipe
+│   ├── DownloadRepository   # Download management
+│   ├── SessionManager       # Auth & cookies
+│   └── Models               # Song, Playlist, VideoItem
 ├── service/                 # Background services
-│   └── MusicService         # MediaLibraryService for playback
+│   └── MusicService         # MediaLibraryService
 └── ui/                      # Presentation layer
-    ├── home/                # Home screen with recommendations
-    ├── library/             # Library with playlists and liked songs
-    ├── player/              # Expandable player with queue
+    ├── home/                # Home with recommendations
+    ├── library/             # Playlists & liked songs
+    ├── player/              # Music player & queue
+    ├── video/               # Video player (NEW!)
     ├── search/              # Search functionality
+    ├── downloads/           # Download manager (NEW!)
     ├── settings/            # App preferences
-    ├── auth/                # YouTube sign-in dialog
+    ├── auth/                # YouTube sign-in
     ├── components/          # Reusable UI components
     └── theme/               # Material 3 theming
 ```
 
-## Setup and Installation
+---
 
-1. Clone the repository to your local machine
-2. Open the project in Android Studio (Ladybug or newer recommended)
-3. Sync the Gradle project to download all dependencies
-4. Connect an Android device (API 31+) or start an emulator
-5. Run the `app` configuration
+## Getting Started
 
-### YouTube Music Features
-To access personalized features (recommendations, playlists, liked songs, history sync):
-1. Launch the app and navigate to Settings
-2. Tap "Connect YouTube Account"
-3. Sign in with your Google account through the embedded browser
-4. Once authenticated, personalized content will be available
+### Prerequisites
+- Android Studio Ladybug or newer
+- Android device or emulator (API 31+)
 
-## Building Release APK
+### Installation
 
-The project supports ABI splits for optimized APK sizes:
-- `armeabi-v7a` for 32-bit ARM devices
-- `arm64-v8a` for 64-bit ARM devices
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/Ivorisnoob/TheMusicApp.git
+   ```
 
-To build a release APK, configure the keystore in `app/build.gradle.kts` and run:
+2. **Open in Android Studio**
+
+3. **Sync Gradle** to download dependencies
+
+4. **Run** on your device
+
+### YouTube Account (Optional)
+
+To access personalized features:
+1. Navigate to **Settings**
+2. Tap **"Connect YouTube Account"**
+3. Sign in with your Google account
+4. Enjoy personalized recommendations!
+
+---
+
+## Building
+
+### Debug APK
+```bash
+./gradlew assembleDebug
+```
+
+### Release APK
+Configure keystore in `app/build.gradle.kts`, then:
 ```bash
 ./gradlew assembleRelease
 ```
 
-## Future Goals
+APKs are split by ABI for optimized sizes:
+- `armeabi-v7a` — 32-bit ARM
+- `arm64-v8a` — 64-bit ARM
 
-Development continues with a focus on expanding capabilities and improving reliability:
+---
 
-- **Offline Support**: Download manager for saving tracks for offline listening
-- **Enhanced Playlist Management**: Create, edit, and reorganize playlists within the app
-- **Advanced Audio Features**: Equalizer, gapless playback, and crossfade support
-- **Improved Authentication**: Streamlined login process with better session management
-- **Cross-Platform Availability**: Exploring Kotlin Multiplatform (KMP) for desktop and iOS
+## Roadmap
+
+- [ ] Enhanced Playlist Management — Create & edit playlists
+- [ ] Advanced Audio — Equalizer, gapless playback, crossfade
+- [ ] Lyrics Support — Display synced lyrics
+- [ ] Widget — Home screen music controls
+- [ ] Kotlin Multiplatform — Desktop & iOS support
+
+---
 
 ## Contributing
 
-Contributions are welcome. Please open an issue first to discuss proposed changes before submitting a pull request.
+Contributions are welcome! Please:
+1. Open an **issue** to discuss proposed changes
+2. Submit a **pull request** with your improvements
+
+---
 
 ## License
 
-This project is licensed under the **Creative Commons Attribution-NonCommercial 4.0 International License (CC BY-NC 4.0)**.
+**Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)**
 
 You are free to:
-- **Share**: Copy and redistribute the material in any medium or format
-- **Adapt**: Remix, transform, and build upon the material
+- **Share** — Copy and redistribute in any medium
+- **Adapt** — Remix, transform, and build upon
 
-Under the following terms:
-- **Attribution**: You must give appropriate credit, provide a link to the license, and indicate if changes were made
-- **NonCommercial**: You may not use the material for commercial purposes
+Under the terms:
+- **Attribution** — Give appropriate credit
+- **NonCommercial** — No commercial use
 
-For the full license text, see the [LICENSE](LICENSE) file or visit [creativecommons.org/licenses/by-nc/4.0](https://creativecommons.org/licenses/by-nc/4.0/)
+See the [LICENSE](LICENSE) file or visit [creativecommons.org/licenses/by-nc/4.0](https://creativecommons.org/licenses/by-nc/4.0/)
 
-Copyright 2026 Harsh Nandha
+---
+
+<p align="center">
+  Made with love by <b>ivorisnoob</b>
+  <br/>
+  Copyright 2026
+</p>

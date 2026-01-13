@@ -30,127 +30,120 @@ jobs:
         env:
           BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: |
-          curl -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
-            -d "chat_id=@ivorisnoob_projects" \
+          curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${{ env.TELEGRAM_CHAT_ID }}" \
             -d "parse_mode=HTML" \
-            -d "text=🚀 <b>New Commit Pushed!</b>
+            -d "text=🎵 <b>IvorMusic</b> | New Update
+          ━━━━━━━━━━━━━━━━━━━━
 
-          📦 <b>Repository:</b> ${{ github.repository }}
-          🌿 <b>Branch:</b> ${{ github.ref_name }}
+          🚀 <b>New commit pushed!</b>
 
-          📝 <b>Commit:</b> ${{ github.sha }}
-          👤 <b>Author:</b> ${{ github.event.head_commit.author.name }}
+          � <code>${{ github.repository }}</code>
+          🌿 Branch: <code>${{ github.ref_name }}</code>
+          👨‍💻 Author: <b>${{ github.event.head_commit.author.name }}</b>
 
-          🔗 <a href='${{ github.event.head_commit.url }}'>View Commit</a>"
+          ━━━━━━━━━━━━━━━━━━━━
+          🔗 <a href='${{ github.event.head_commit.url }}'>View Changes →</a>"
 
   # ============================================
   # 🔀 Pull Request Notifications
   # ============================================
-  notify-pr:
-    if: github.event_name == 'pull_request'
+  notify-pr-opened:
+    if: github.event_name == 'pull_request' && github.event.action == 'opened'
     runs-on: ubuntu-latest
     steps:
       - name: Send PR Opened Notification
-        if: github.event.action == 'opened'
         env:
           BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: |
-          curl -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
-            -d "chat_id=@ivorisnoob_projects" \
+          curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${{ env.TELEGRAM_CHAT_ID }}" \
             -d "parse_mode=HTML" \
-            -d "text=🔀 <b>New Pull Request!</b>
+            -d "text=🎵 <b>IvorMusic</b> | Pull Request
+          ━━━━━━━━━━━━━━━━━━━━
 
-          📦 <b>Repository:</b> ${{ github.repository }}
-          📋 <b>Title:</b> ${{ github.event.pull_request.title }}
-          👤 <b>Author:</b> ${{ github.event.pull_request.user.login }}
+          � <b>New PR opened!</b>
 
-          🌿 ${{ github.event.pull_request.head.ref }} → ${{ github.event.pull_request.base.ref }}"
-            🔀 <b>New Pull Request!</b>
-            
-            📦 <b>Repository:</b> ${{ github.repository }}
-            📋 <b>Title:</b> ${{ github.event.pull_request.title }}
-            👤 <b>Author:</b> ${{ github.event.pull_request.user.login }}
-            
-            🌿 ${{ github.event.pull_request.head.ref }} → ${{ github.event.pull_request.base.ref }}
-            
-            ➕ ${{ github.event.pull_request.additions }} additions
-            ➖ ${{ github.event.pull_request.deletions }} deletions
-            
-            🔗 <a href="${{ github.event.pull_request.html_url }}">View PR</a>
+          📋 <b>${{ github.event.pull_request.title }}</b>
 
+          � Opened by: <b>${{ github.event.pull_request.user.login }}</b>
+          � <code>${{ github.event.pull_request.head.ref }}</code> → <code>${{ github.event.pull_request.base.ref }}</code>
+
+          ━━━━━━━━━━━━━━━━━━━━
+          🔗 <a href='${{ github.event.pull_request.html_url }}'>Review PR →</a>"
+
+  notify-pr-merged:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
       - name: Send PR Merged Notification
-        if: github.event.action == 'closed' && github.event.pull_request.merged == true
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ env.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          format: html
-          message: |
-            ✅ <b>Pull Request Merged!</b>
-            
-            📦 <b>Repository:</b> ${{ github.repository }}
-            📋 <b>Title:</b> ${{ github.event.pull_request.title }}
-            👤 <b>Merged by:</b> ${{ github.event.sender.login }}
-            
-            ➕ ${{ github.event.pull_request.additions }} additions
-            ➖ ${{ github.event.pull_request.deletions }} deletions
-            
-            🔗 <a href="${{ github.event.pull_request.html_url }}">View PR</a>
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${{ env.TELEGRAM_CHAT_ID }}" \
+            -d "parse_mode=HTML" \
+            -d "text=🎵 <b>IvorMusic</b> | Merged! 🎊
+          ━━━━━━━━━━━━━━━━━━━━
 
-      - name: Send PR Closed Notification
-        if: github.event.action == 'closed' && github.event.pull_request.merged == false
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ env.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          format: html
-          message: |
-            ❌ <b>Pull Request Closed</b>
-            
-            📦 <b>Repository:</b> ${{ github.repository }}
-            📋 <b>Title:</b> ${{ github.event.pull_request.title }}
-            👤 <b>Closed by:</b> ${{ github.event.sender.login }}
-            
-            🔗 <a href="${{ github.event.pull_request.html_url }}">View PR</a>
+          ✅ <b>PR successfully merged!</b>
+
+          📋 <b>${{ github.event.pull_request.title }}</b>
+
+          👤 Merged by: <b>${{ github.event.sender.login }}</b>
+          📊 +${{ github.event.pull_request.additions }} / -${{ github.event.pull_request.deletions }} lines
+
+          ━━━━━━━━━━━━━━━━━━━━
+          🔗 <a href='${{ github.event.pull_request.html_url }}'>View Details →</a>"
 
   # ============================================
   # 🐛 Issue Notifications
   # ============================================
-  notify-issue:
-    if: github.event_name == 'issues'
+  notify-issue-opened:
+    if: github.event_name == 'issues' && github.event.action == 'opened'
     runs-on: ubuntu-latest
     steps:
       - name: Send Issue Opened Notification
-        if: github.event.action == 'opened'
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ env.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          format: html
-          message: |
-            🐛 <b>New Issue Opened!</b>
-            
-            📦 <b>Repository:</b> ${{ github.repository }}
-            📋 <b>Title:</b> ${{ github.event.issue.title }}
-            👤 <b>Author:</b> ${{ github.event.issue.user.login }}
-            
-            🔗 <a href="${{ github.event.issue.html_url }}">View Issue</a>
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${{ env.TELEGRAM_CHAT_ID }}" \
+            -d "parse_mode=HTML" \
+            -d "text=🎵 <b>IvorMusic</b> | New Issue
+          ━━━━━━━━━━━━━━━━━━━━
 
+          � <b>Issue reported!</b>
+
+          📋 <b>${{ github.event.issue.title }}</b>
+
+          👤 Reported by: <b>${{ github.event.issue.user.login }}</b>
+
+          ━━━━━━━━━━━━━━━━━━━━
+          🔗 <a href='${{ github.event.issue.html_url }}'>View Issue →</a>"
+
+  notify-issue-closed:
+    if: github.event_name == 'issues' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    steps:
       - name: Send Issue Closed Notification
-        if: github.event.action == 'closed'
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ env.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          format: html
-          message: |
-            ✅ <b>Issue Closed!</b>
-            
-            📦 <b>Repository:</b> ${{ github.repository }}
-            📋 <b>Title:</b> ${{ github.event.issue.title }}
-            👤 <b>Closed by:</b> ${{ github.event.sender.login }}
-            
-            🔗 <a href="${{ github.event.issue.html_url }}">View Issue</a>
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${{ env.TELEGRAM_CHAT_ID }}" \
+            -d "parse_mode=HTML" \
+            -d "text=🎵 <b>IvorMusic</b> | Issue Resolved
+          ━━━━━━━━━━━━━━━━━━━━
+
+          ✅ <b>Issue closed!</b>
+
+          📋 <b>${{ github.event.issue.title }}</b>
+
+          👤 Closed by: <b>${{ github.event.sender.login }}</b>
+
+          ━━━━━━━━━━━━━━━━━━━━
+          🔗 <a href='${{ github.event.issue.html_url }}'>View Issue →</a>"
 
   # ============================================
   # 💬 Issue Comment Notification
@@ -160,19 +153,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Send Comment Notification
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ env.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          format: html
-          message: |
-            💬 <b>New Comment!</b>
-            
-            📦 <b>Repository:</b> ${{ github.repository }}
-            📋 <b>On:</b> ${{ github.event.issue.title }}
-            👤 <b>Author:</b> ${{ github.event.comment.user.login }}
-            
-            🔗 <a href="${{ github.event.comment.html_url }}">View Comment</a>
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${{ env.TELEGRAM_CHAT_ID }}" \
+            -d "parse_mode=HTML" \
+            -d "text=🎵 <b>IvorMusic</b> | New Comment
+          ━━━━━━━━━━━━━━━━━━━━
+
+          � <b>Someone commented!</b>
+
+          📋 On: <b>${{ github.event.issue.title }}</b>
+          👤 By: <b>${{ github.event.comment.user.login }}</b>
+
+          ━━━━━━━━━━━━━━━━━━━━
+          🔗 <a href='${{ github.event.comment.html_url }}'>Read Comment →</a>"
 
   # ============================================
   # ⭐ Star Notification
@@ -182,20 +178,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Send Star Notification
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ env.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          format: html
-          message: |
-            ⭐ <b>New Star!</b>
-            
-            🎉 ${{ github.event.sender.login }} just starred the repo!
-            
-            📦 <b>Repository:</b> ${{ github.repository }}
-            ⭐ <b>Total Stars:</b> ${{ github.event.repository.stargazers_count }}
-            
-            🔗 <a href="https://github.com/${{ github.repository }}">View Repo</a>
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${{ env.TELEGRAM_CHAT_ID }}" \
+            -d "parse_mode=HTML" \
+            -d "text=🎵 <b>IvorMusic</b> | New Star! ⭐
+          ━━━━━━━━━━━━━━━━━━━━
+
+          🌟 <b>We got a new star!</b>
+
+          👤 <b>${{ github.event.sender.login }}</b> starred the repo!
+
+          ⭐ Total Stars: <b>${{ github.event.repository.stargazers_count }}</b>
+
+          ━━━━━━━━━━━━━━━━━━━━
+          Thank you for your support! 💜
+          🔗 <a href='https://github.com/${{ github.repository }}'>Visit Repo →</a>"
 
   # ============================================
   # 🍴 Fork Notification
@@ -205,21 +205,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Send Fork Notification
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ env.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          format: html
-          message: |
-            🍴 <b>Repository Forked!</b>
-            
-            👤 ${{ github.event.sender.login }} forked the repo!
-            
-            📦 <b>Original:</b> ${{ github.repository }}
-            📦 <b>Fork:</b> ${{ github.event.forkee.full_name }}
-            🍴 <b>Total Forks:</b> ${{ github.event.repository.forks_count }}
-            
-            🔗 <a href="${{ github.event.forkee.html_url }}">View Fork</a>
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${{ env.TELEGRAM_CHAT_ID }}" \
+            -d "parse_mode=HTML" \
+            -d "text=🎵 <b>IvorMusic</b> | Forked! 🍴
+          ━━━━━━━━━━━━━━━━━━━━
+
+          🍴 <b>Repository forked!</b>
+
+          👤 <b>${{ github.event.sender.login }}</b> forked the project!
+          📦 Fork: <code>${{ github.event.forkee.full_name }}</code>
+
+          ━━━━━━━━━━━━━━━━━━━━
+          Happy coding! 🚀
+          🔗 <a href='${{ github.event.forkee.html_url }}'>View Fork →</a>"
 
   # ============================================
   # 📦 Release Notification
@@ -229,18 +231,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Send Release Notification
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ env.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          format: html
-          message: |
-            🎉 <b>New Release Published!</b>
-            
-            📦 <b>Repository:</b> ${{ github.repository }}
-            🏷️ <b>Version:</b> ${{ github.event.release.tag_name }}
-            📋 <b>Name:</b> ${{ github.event.release.name }}
-            
-            👤 <b>Author:</b> ${{ github.event.release.author.login }}
-            
-            🔗 <a href="${{ github.event.release.html_url }}">Download Release</a>
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${{ env.TELEGRAM_CHAT_ID }}" \
+            -d "parse_mode=HTML" \
+            -d "text=� <b>IvorMusic</b> | New Release! 🎉
+          ━━━━━━━━━━━━━━━━━━━━
+
+          📦 <b>Version ${{ github.event.release.tag_name }}</b>
+
+          📋 <b>${{ github.event.release.name }}</b>
+          👤 Released by: <b>${{ github.event.release.author.login }}</b>
+
+          ━━━━━━━━━━━━━━━━━━━━
+          � <a href='${{ github.event.release.html_url }}'>Download Now →</a>"
