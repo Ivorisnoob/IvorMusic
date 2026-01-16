@@ -127,37 +127,46 @@ class VideoPlayerViewModel(application: android.app.Application) : AndroidViewMo
                 _exoPlayer?.stop()
                 _exoPlayer?.clearMediaItems()
                 
-                // FAST: Get stream URLs only (no metadata, no related, no channel avatar)
-                val qualities = youtubeRepository.getVideoStreamQualities(video.videoId)
-                _availableQualities.value = qualities
-                
-                if (qualities.isNotEmpty()) {
-                    val bestQuality = qualities.find { it.resolution.contains("1080p60") }
-                        ?: qualities.find { it.resolution.contains("1080p") }
-                        ?: qualities.find { it.isDASH }
-                        ?: qualities.first()
-                        
-                    loadQuality(bestQuality)
-                    _isLoading.value = false // ✅ Playback starting NOW!
-                } else {
-                    // Fallback to legacy stream URL
-                    val streamUrl = youtubeRepository.getVideoStreamUrl(video.videoId)
-                    if (streamUrl != null) {
-                        _currentQuality.value = VideoQuality(
-                            resolution = "Auto",
-                            url = streamUrl,
-                            isDASH = false,
-                            audioUrl = null
-                        )
-                        val mediaItem = MediaItem.fromUri(streamUrl)
-                        _exoPlayer?.setMediaItem(mediaItem)
-                        _exoPlayer?.prepare()
-                        _isLoading.value = false
+                // Add timeout for stream fetching to prevent "stuck in buffering"
+                kotlinx.coroutines.withTimeout(15000L) {
+                    // FAST: Get stream URLs only (no metadata, no related, no channel avatar)
+                    val qualities = youtubeRepository.getVideoStreamQualities(video.videoId)
+                    _availableQualities.value = qualities
+                    
+                    if (qualities.isNotEmpty()) {
+                        val bestQuality = qualities.find { it.resolution.contains("1080p60") }
+                            ?: qualities.find { it.resolution.contains("1080p") }
+                            ?: qualities.find { it.isDASH }
+                            ?: qualities.first()
+                            
+                        loadQuality(bestQuality)
+                        // FORCE PLAY: Ensure we override any previous paused state
+                        _exoPlayer?.play() 
+                        _isLoading.value = false // ✅ Playback starting NOW!
                     } else {
-                        _playbackError.value = Exception("Unable to load video stream")
-                        _isLoading.value = false
+                        // Fallback to legacy stream URL
+                        val streamUrl = youtubeRepository.getVideoStreamUrl(video.videoId)
+                        if (streamUrl != null) {
+                            _currentQuality.value = VideoQuality(
+                                resolution = "Auto",
+                                url = streamUrl,
+                                isDASH = false,
+                                audioUrl = null
+                            )
+                            val mediaItem = MediaItem.fromUri(streamUrl)
+                            _exoPlayer?.setMediaItem(mediaItem)
+                            _exoPlayer?.prepare()
+                            _exoPlayer?.play() // FORCE PLAY
+                            _isLoading.value = false
+                        } else {
+                            _playbackError.value = Exception("Unable to load video stream")
+                            _isLoading.value = false
+                        }
                     }
                 }
+            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                _playbackError.value = Exception("Connection timed out. Please check your internet.")
+                _isLoading.value = false
             } catch (e: Exception) {
                 e.printStackTrace()
                 _playbackError.value = e

@@ -220,6 +220,10 @@ private fun GestureNowPlayingView(
         if (maxWidth < 100.dp || maxHeight < 100.dp) {
             return@BoxWithConstraints
         }
+
+        // Calculate width to match album art exactly (Pre-calculated for nested scopes)
+        val progressBarWidth = if (queue.isNotEmpty()) maxWidth * 0.90f else maxWidth * 0.98f
+
         
         Box(modifier = Modifier.fillMaxSize()) {
             // Chromatic Mist ambient background
@@ -422,12 +426,11 @@ private fun GestureNowPlayingView(
                         }
                         
                         Spacer(modifier = Modifier.height(30.dp))
-                        
                         // ========== 5. WAVY PROGRESS BAR (Expressive Style) ==========
+                        
                         Column(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 20.dp)
+                                .width(progressBarWidth)
                         ) {
                             val progressFraction = if (duration > 0) progress.toFloat() / duration.toFloat() else 0f
                             val animatedProgress by animateFloatAsState(

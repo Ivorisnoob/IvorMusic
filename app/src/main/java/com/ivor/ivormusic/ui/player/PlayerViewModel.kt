@@ -195,34 +195,33 @@ class PlayerViewModel(private val context: Context) : ViewModel() {
         fetchLyrics(currentSong)
         
         controller?.let { player ->
-            // 1. Play the target song immediately to be responsive
+            // 1. Set the target song first (triggers URL resolution in MusicService)
             val startItem = createMediaItem(currentSong)
             player.setMediaItem(startItem)
+            
+            // 2. Add the rest of the queue BEFORE prepare (so notification sees full queue)
+            val otherItemsBefore = songs.subList(0, startIndex).map { createMediaItem(it) }
+            val otherItemsAfter = songs.subList(startIndex + 1, songs.size).map { createMediaItem(it) }
+            
+            if (otherItemsBefore.isNotEmpty()) {
+                player.addMediaItems(0, otherItemsBefore)
+            }
+            if (otherItemsAfter.isNotEmpty()) {
+                // Start item is now at index otherItemsBefore.size
+                player.addMediaItems(otherItemsBefore.size + 1, otherItemsAfter)
+            }
+            
+            // 3. NOW prepare and play - notification will see complete queue
             player.prepare()
             player.play()
             
-            // 2. Add the rest of the queue in the background
-            viewModelScope.launch {
-                val otherItemsBefore = songs.subList(0, startIndex).map { createMediaItem(it) }
-                val otherItemsAfter = songs.subList(startIndex + 1, songs.size).map { createMediaItem(it) }
-                
-                if (otherItemsBefore.isNotEmpty()) {
-                    player.addMediaItems(0, otherItemsBefore)
-                }
-                if (otherItemsAfter.isNotEmpty()) {
-                    // Start item is now at index otherItemsBefore.size
-                    player.addMediaItems(otherItemsBefore.size + 1, otherItemsAfter)
-                }
-            }
-            
-            // FIX: Add safety timeout for buffering state
+            // Safety timeout for buffering state
             viewModelScope.launch {
                 var timeout = 0
                 while (_isBuffering.value && timeout < 10) {
                     delay(1000)
                     timeout++
                     if (timeout >= 10 && _isBuffering.value && !_isPlaying.value) {
-                        // Stuck buffering for 10 seconds - force reset state
                         _isBuffering.value = false
                         break
                     }
@@ -289,16 +288,20 @@ class PlayerViewModel(private val context: Context) : ViewModel() {
                 )
                 .build()
         } else {
+            // YouTube songs: Use mediaId as placeholder URI
+            // MusicService will resolve the actual stream URL when this track is about to play
+            // This ensures MediaSession counts this as a valid timeline item (fixes Next button)
             MediaItem.Builder()
-            .setMediaId(song.id)
-            .setMediaMetadata(
-                androidx.media3.common.MediaMetadata.Builder()
-                    .setTitle(song.title)
-                    .setArtist(song.artist)
-                    .setArtworkUri(android.net.Uri.parse(song.highResThumbnailUrl ?: song.thumbnailUrl ?: ""))
-                    .build()
-            )
-            .build()
+                .setMediaId(song.id)
+                .setUri("https://placeholder.ivormusic/${song.id}")
+                .setMediaMetadata(
+                    androidx.media3.common.MediaMetadata.Builder()
+                        .setTitle(song.title)
+                        .setArtist(song.artist)
+                        .setArtworkUri(android.net.Uri.parse(song.highResThumbnailUrl ?: song.thumbnailUrl ?: ""))
+                        .build()
+                )
+                .build()
         }
     }
 

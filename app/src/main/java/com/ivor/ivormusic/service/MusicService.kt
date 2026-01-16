@@ -80,15 +80,17 @@ class MusicService : MediaLibraryService() {
                     prefetchUpcomingSongs()
                 }
                 
-                // FIX: Detect when stuck buffering on a YouTube item without URI
+                // FIX: Detect when stuck buffering on a YouTube item without URI or with placeholder
                 if (playbackState == Player.STATE_BUFFERING) {
                     val currentItem = player.currentMediaItem
                     val videoId = currentItem?.mediaId
+                    val currentUri = currentItem?.localConfiguration?.uri?.toString()
                     
-                    // Check if this is a YouTube item without a resolved URL
-                    if (currentItem != null && 
-                        currentItem.localConfiguration?.uri == null && 
-                        !videoId.isNullOrEmpty()) {
+                    // Check if this is a YouTube item that needs URL resolution
+                    // (no URI, or placeholder URI)
+                    val needsResolution = currentUri == null || currentUri.startsWith("https://placeholder.ivormusic/")
+                    
+                    if (currentItem != null && needsResolution && !videoId.isNullOrEmpty()) {
                         
                         Log.d(TAG, "Detected buffering on unresolved item: $videoId, attempting to resolve...")
                         
@@ -155,7 +157,10 @@ class MusicService : MediaLibraryService() {
                     if (mediaItems.size == 1) {
                         val item = mediaItems[0]
                         val videoId = item.mediaId
-                        if (item.localConfiguration?.uri == null) {
+                        val uri = item.localConfiguration?.uri?.toString()
+                        // Check if no URI or placeholder URI (needs resolution)
+                        val needsResolution = uri == null || uri.startsWith("https://placeholder.ivormusic/")
+                        if (needsResolution) {
                             val resolved = resolveStreamUrl(item, videoId)
                             mutableListOf(resolved)
                         } else {
