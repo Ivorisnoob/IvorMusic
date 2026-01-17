@@ -228,7 +228,8 @@ private fun ExpressiveNowPlayingView(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
-                .padding(top = 48.dp, bottom = 16.dp),
+                .statusBarsPadding()
+                .padding(top = 16.dp, bottom = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -721,7 +722,8 @@ private fun ExpressiveQueueView(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 48.dp)
+                .statusBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 16.dp)
                 .align(Alignment.TopCenter),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically

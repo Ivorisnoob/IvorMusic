@@ -236,7 +236,8 @@ private fun GestureNowPlayingView(
             Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = 48.dp),
+                .statusBarsPadding()
+                .padding(top = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
@@ -988,7 +989,8 @@ private fun GestureQueueView(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
-                    .padding(top = 48.dp, bottom = 16.dp),
+                    .statusBarsPadding()
+                    .padding(top = 16.dp, bottom = 16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
