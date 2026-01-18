@@ -33,6 +33,9 @@ class ThemePreferences(context: Context) {
     
     private val _saveVideoHistory = MutableStateFlow(getSaveVideoHistoryPreference())
     val saveVideoHistory: StateFlow<Boolean> = _saveVideoHistory.asStateFlow()
+    
+    private val _excludedFolders = MutableStateFlow(getExcludedFoldersPreference())
+    val excludedFolders: StateFlow<Set<String>> = _excludedFolders.asStateFlow()
 
     companion object {
         private const val PREFS_NAME = "ivor_music_theme_prefs"
@@ -43,6 +46,7 @@ class ThemePreferences(context: Context) {
         private const val KEY_VIDEO_MODE = "video_mode"
         private const val KEY_PLAYER_STYLE = "player_style"
         private const val KEY_SAVE_VIDEO_HISTORY = "save_video_history"
+        private const val KEY_EXCLUDED_FOLDERS = "excluded_folders"
     }
 
     /**
@@ -183,6 +187,39 @@ class ThemePreferences(context: Context) {
      */
     fun toggleSaveVideoHistory() {
         setSaveVideoHistory(!_saveVideoHistory.value)
+    }
+    
+    /**
+     * Get the stored excluded folders preference. Defaults to empty set.
+     */
+    private fun getExcludedFoldersPreference(): Set<String> {
+        return prefs.getStringSet(KEY_EXCLUDED_FOLDERS, emptySet()) ?: emptySet()
+    }
+    
+    /**
+     * Save excluded folders preference and update the flow.
+     */
+    fun setExcludedFolders(folders: Set<String>) {
+        prefs.edit().putStringSet(KEY_EXCLUDED_FOLDERS, folders).apply()
+        _excludedFolders.value = folders
+    }
+    
+    /**
+     * Add a folder to the excluded list.
+     */
+    fun addExcludedFolder(folderPath: String) {
+        val current = _excludedFolders.value.toMutableSet()
+        current.add(folderPath)
+        setExcludedFolders(current)
+    }
+    
+    /**
+     * Remove a folder from the excluded list.
+     */
+    fun removeExcludedFolder(folderPath: String) {
+        val current = _excludedFolders.value.toMutableSet()
+        current.remove(folderPath)
+        setExcludedFolders(current)
     }
 }
 

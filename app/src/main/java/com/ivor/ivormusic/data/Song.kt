@@ -22,7 +22,8 @@ data class Song(
     val uri: Uri? = null, // Local content URI (null for YouTube songs until resolved)
     val albumArtUri: Uri? = null, // Album art URI
     val thumbnailUrl: String? = null, // YouTube thumbnail URL
-    val source: SongSource = SongSource.LOCAL
+    val source: SongSource = SongSource.LOCAL,
+    val filePath: String? = null // Local file path for folder filtering and embedded lyrics
 ) {
     val highResThumbnailUrl: String?
         get() = thumbnailUrl?.let { url ->
@@ -53,7 +54,8 @@ data class Song(
             album: String,
             duration: Long,
             uri: Uri,
-            albumArtUri: Uri?
+            albumArtUri: Uri?,
+            filePath: String? = null
         ): Song = Song(
             id = id.toString(),
             title = title,
@@ -62,7 +64,8 @@ data class Song(
             duration = duration,
             uri = uri,
             albumArtUri = albumArtUri,
-            source = SongSource.LOCAL
+            source = SongSource.LOCAL,
+            filePath = filePath
         )
 
         /**

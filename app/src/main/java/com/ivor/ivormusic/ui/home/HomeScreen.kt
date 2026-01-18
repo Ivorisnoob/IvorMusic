@@ -134,6 +134,7 @@ fun HomeScreen(
     onNavigateToDownloads: () -> Unit = {},
     onNavigateToVideoPlayer: (VideoItem) -> Unit = {},
     loadLocalSongs: Boolean = true,
+    excludedFolders: Set<String> = emptySet(),
     ambientBackground: Boolean = true,
     videoMode: Boolean = false,
     playerStyle: PlayerStyle = PlayerStyle.CLASSIC
@@ -169,13 +170,13 @@ fun HomeScreen(
     )
 
     // Load songs based on setting
-    LaunchedEffect(Unit, loadLocalSongs) {
+    LaunchedEffect(Unit, loadLocalSongs, excludedFolders) {
         viewModel.checkYouTubeConnection()
         if (loadLocalSongs) {
             if (!permissionState.status.isGranted) {
                 permissionState.launchPermissionRequest()
             } else {
-                viewModel.loadSongs()
+                viewModel.loadSongs(excludedFolders)
             }
         } else {
             // Load YouTube recommendations when not using local songs
@@ -183,9 +184,9 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(permissionState.status.isGranted, loadLocalSongs) {
+    LaunchedEffect(permissionState.status.isGranted, loadLocalSongs, excludedFolders) {
         if (permissionState.status.isGranted && loadLocalSongs) {
-            viewModel.loadSongs()
+            viewModel.loadSongs(excludedFolders)
         }
     }
     
@@ -298,7 +299,8 @@ fun HomeScreen(
                                 onDownloadsClick = onNavigateToDownloads,
                                 isDarkMode = isDarkMode,
                                 contentPadding = PaddingValues(bottom = 160.dp), // Space for navbar + miniplayer
-                                viewModel = viewModel
+                                viewModel = viewModel,
+                                excludedFolders = excludedFolders
                             )
                         }
                     }
@@ -558,14 +560,15 @@ fun YourMixContent(
     onDownloadsClick: () -> Unit = {},
     isDarkMode: Boolean,
     contentPadding: PaddingValues,
-    viewModel: HomeViewModel
+    viewModel: HomeViewModel,
+    excludedFolders: Set<String> = emptySet()
 ) {
     val backgroundColor = MaterialTheme.colorScheme.background
     val textColor = MaterialTheme.colorScheme.onBackground
     
     PullToRefreshBox(
         isRefreshing = viewModel.isLoading.collectAsState().value,
-        onRefresh = { viewModel.refresh() },
+        onRefresh = { viewModel.refresh(excludedFolders) },
         modifier = Modifier.fillMaxSize()
     ) {
         LazyColumn(

@@ -19,6 +19,7 @@ class ThemeViewModel(application: Application) : AndroidViewModel(application) {
     val videoMode: StateFlow<Boolean> = themePreferences.videoMode
     val playerStyle: StateFlow<PlayerStyle> = themePreferences.playerStyle
     val saveVideoHistory: StateFlow<Boolean> = themePreferences.saveVideoHistory
+    val excludedFolders: StateFlow<Set<String>> = themePreferences.excludedFolders
 
     fun setThemeMode(mode: ThemeMode) {
         themePreferences.setThemeMode(mode)
@@ -58,5 +59,17 @@ class ThemeViewModel(application: Application) : AndroidViewModel(application) {
     
     fun toggleSaveVideoHistory() {
         themePreferences.toggleSaveVideoHistory()
+    }
+    
+    fun addExcludedFolder(folderPath: String) {
+        themePreferences.addExcludedFolder(folderPath)
+    }
+    
+    fun removeExcludedFolder(folderPath: String) {
+        themePreferences.removeExcludedFolder(folderPath)
+    }
+    
+    fun setExcludedFolders(folders: Set<String>) {
+        themePreferences.setExcludedFolders(folders)
     }
 }

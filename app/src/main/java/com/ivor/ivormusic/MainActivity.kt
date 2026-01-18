@@ -41,6 +41,7 @@ class MainActivity : ComponentActivity() {
             val videoMode by themeViewModel.videoMode.collectAsState()
             val playerStyle by themeViewModel.playerStyle.collectAsState()
             val saveVideoHistory by themeViewModel.saveVideoHistory.collectAsState()
+            val excludedFolders by themeViewModel.excludedFolders.collectAsState()
             
             val isSystemDark = isSystemInDarkTheme()
             val isDarkTheme = remember(themeMode, isSystemDark) {
@@ -69,7 +70,10 @@ class MainActivity : ComponentActivity() {
                     playerStyle = playerStyle,
                     onPlayerStyleChange = { themeViewModel.setPlayerStyle(it) },
                     saveVideoHistory = saveVideoHistory,
-                    onSaveVideoHistoryToggle = { themeViewModel.setSaveVideoHistory(it) }
+                    onSaveVideoHistoryToggle = { themeViewModel.setSaveVideoHistory(it) },
+                    excludedFolders = excludedFolders,
+                    onAddExcludedFolder = { themeViewModel.addExcludedFolder(it) },
+                    onRemoveExcludedFolder = { themeViewModel.removeExcludedFolder(it) }
                 )
             }
         }
@@ -91,7 +95,10 @@ fun MusicApp(
     playerStyle: PlayerStyle,
     onPlayerStyleChange: (PlayerStyle) -> Unit,
     saveVideoHistory: Boolean,
-    onSaveVideoHistoryToggle: (Boolean) -> Unit
+    onSaveVideoHistoryToggle: (Boolean) -> Unit,
+    excludedFolders: Set<String>,
+    onAddExcludedFolder: (String) -> Unit,
+    onRemoveExcludedFolder: (String) -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val navController = rememberNavController()
@@ -117,6 +124,7 @@ fun MusicApp(
                         videoPlayerViewModel.playVideo(video)
                     },
                     loadLocalSongs = loadLocalSongs,
+                    excludedFolders = excludedFolders,
                     ambientBackground = ambientBackground,
                     videoMode = videoMode,
                     playerStyle = playerStyle
@@ -136,6 +144,10 @@ fun MusicApp(
                     onPlayerStyleChange = onPlayerStyleChange,
                     saveVideoHistory = saveVideoHistory,
                     onSaveVideoHistoryToggle = onSaveVideoHistoryToggle,
+                    excludedFolders = excludedFolders,
+                    onAddExcludedFolder = onAddExcludedFolder,
+                    onRemoveExcludedFolder = onRemoveExcludedFolder,
+                    homeViewModel = homeViewModel,
                     onLogoutClick = { 
                         homeViewModel.logout()
                     },

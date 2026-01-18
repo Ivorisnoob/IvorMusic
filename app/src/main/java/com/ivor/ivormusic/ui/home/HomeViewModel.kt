@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.ivor.ivormusic.data.SessionManager
 import com.ivor.ivormusic.data.Song
 import com.ivor.ivormusic.data.SongRepository
+import com.ivor.ivormusic.data.FolderInfo
 import com.ivor.ivormusic.data.VideoItem
 import com.ivor.ivormusic.data.YouTubeRepository
 import com.ivor.ivormusic.data.LikedSongsRepository
@@ -103,10 +104,17 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         return downloadRepository.isLocalOriginal(song)
     }
 
-    fun loadSongs() {
+    fun loadSongs(excludedFolders: Set<String> = emptySet()) {
         viewModelScope.launch {
-            _songs.value = localRepository.getSongs()
+            _songs.value = localRepository.getSongs(excludedFolders)
         }
+    }
+    
+    /**
+     * Get all available music folders for the folder exclusion UI.
+     */
+    suspend fun getAvailableFolders(): List<FolderInfo> {
+        return localRepository.getAvailableFolders()
     }
 
     fun checkYouTubeConnection() {
@@ -200,7 +208,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         _userPlaylists.value = emptyList()
     }
 
-    fun refresh() {
+    fun refresh(excludedFolders: Set<String> = emptySet()) {
         viewModelScope.launch {
             _isLoading.value = true
             try {
@@ -220,8 +228,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     _likedSongs.value = youtubeRepository.getLikedMusic()
                     _userPlaylists.value = youtubeRepository.getUserPlaylists()
                 }
-                // Reload local songs
-                _songs.value = localRepository.getSongs()
+                // Reload local songs with exclusions
+                _songs.value = localRepository.getSongs(excludedFolders)
             } catch (e: Exception) {
                 // Silently fail
             } finally {

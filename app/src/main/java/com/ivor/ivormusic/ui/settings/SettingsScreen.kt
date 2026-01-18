@@ -39,11 +39,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.AccountCircle
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.rounded.FolderOff
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.MusicNote
@@ -53,6 +56,8 @@ import androidx.compose.material.icons.rounded.SwipeRight
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -81,6 +86,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -97,6 +103,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -105,6 +112,7 @@ import androidx.graphics.shapes.RoundedPolygon
 import androidx.graphics.shapes.toPath
 import coil.compose.AsyncImage
 import com.ivor.ivormusic.BuildConfig
+import com.ivor.ivormusic.data.FolderInfo
 import com.ivor.ivormusic.data.SessionManager
 import com.ivor.ivormusic.data.UpdateRepository
 import com.ivor.ivormusic.data.UpdateResult
@@ -112,6 +120,7 @@ import com.ivor.ivormusic.ui.auth.YouTubeAuthDialog
 import com.ivor.ivormusic.data.PlayerStyle
 import com.ivor.ivormusic.ui.theme.ThemeMode
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 // Helper to convert Expressive Polygons to a Compose Shape
 // Based on official Android Shapes snippets
@@ -163,12 +172,17 @@ fun SettingsScreen(
     onPlayerStyleChange: (PlayerStyle) -> Unit,
     saveVideoHistory: Boolean,
     onSaveVideoHistoryToggle: (Boolean) -> Unit,
+    excludedFolders: Set<String>,
+    onAddExcludedFolder: (String) -> Unit,
+    onRemoveExcludedFolder: (String) -> Unit,
+    homeViewModel: com.ivor.ivormusic.ui.home.HomeViewModel,
     onLogoutClick: () -> Unit,
     onBackClick: () -> Unit,
     contentPadding: PaddingValues = PaddingValues()
 ) {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
+    val coroutineScope = rememberCoroutineScope()
     
     // Check actual login status
     var isLoggedIn by remember { mutableStateOf(sessionManager.isLoggedIn()) }
@@ -184,6 +198,11 @@ fun SettingsScreen(
     
     // Dialog state for About
     var showAboutDialog by remember { mutableStateOf(false) }
+    
+    // Dialog state for Folder Exclusion
+    var showFolderExclusionDialog by remember { mutableStateOf(false) }
+    var availableFolders by remember { mutableStateOf<List<FolderInfo>>(emptyList()) }
+    var isFoldersLoading by remember { mutableStateOf(false) }
     
     // Animation states for staggered entry
     var isVisible by remember { mutableStateOf(false) }
@@ -391,6 +410,35 @@ fun SettingsScreen(
                             secondaryTextColor = secondaryTextColor,
                             accentColor = accentColor
                         )
+                        
+                        // Folder Exclusion - only show when local songs are enabled
+                        AnimatedVisibility(
+                            visible = loadLocalSongs,
+                            enter = fadeIn(tween(200)) + slideInVertically(
+                                initialOffsetY = { -it / 4 },
+                                animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+                            ),
+                            exit = fadeOut(tween(150))
+                        ) {
+                            Column {
+                                SettingsDivider()
+                                ExpressiveFolderExclusionItem(
+                                    excludedFoldersCount = excludedFolders.size,
+                                    onClick = {
+                                        // Load available folders when opening dialog
+                                        isFoldersLoading = true
+                                        coroutineScope.launch {
+                                            availableFolders = homeViewModel.getAvailableFolders()
+                                            isFoldersLoading = false
+                                        }
+                                        showFolderExclusionDialog = true
+                                    },
+                                    textColor = textColor,
+                                    secondaryTextColor = secondaryTextColor,
+                                    accentColor = accentColor
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -439,6 +487,18 @@ fun SettingsScreen(
     if (showAboutDialog) {
         ExpressiveAboutDialog(
             onDismiss = { showAboutDialog = false }
+        )
+    }
+    
+    // Folder Exclusion Dialog
+    if (showFolderExclusionDialog) {
+        FolderExclusionDialog(
+            availableFolders = availableFolders,
+            excludedFolders = excludedFolders,
+            isLoading = isFoldersLoading,
+            onAddExcludedFolder = onAddExcludedFolder,
+            onRemoveExcludedFolder = onRemoveExcludedFolder,
+            onDismiss = { showFolderExclusionDialog = false }
         )
     }
 }
@@ -1364,3 +1424,335 @@ private fun AboutDetailRow(
         )
     }
 }
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ExpressiveFolderExclusionItem(
+    excludedFoldersCount: Int,
+    onClick: () -> Unit,
+    textColor: Color,
+    secondaryTextColor: Color,
+    accentColor: Color
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.97f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = "scale"
+    )
+    
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .scale(scale)
+            .clip(RoundedCornerShape(18.dp))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Icon
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(
+                    if (excludedFoldersCount > 0) Color(0xFFE57373).copy(alpha = 0.12f)
+                    else accentColor.copy(alpha = 0.12f)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = if (excludedFoldersCount > 0) Icons.Rounded.FolderOff else Icons.Rounded.Folder,
+                contentDescription = null,
+                tint = if (excludedFoldersCount > 0) Color(0xFFE57373) else accentColor,
+                modifier = Modifier.size(26.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        // Text
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "Excluded Folders",
+                color = textColor,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = if (excludedFoldersCount == 0) "All folders included"
+                       else "$excludedFoldersCount folder${if (excludedFoldersCount > 1) "s" else ""} hidden",
+                color = secondaryTextColor,
+                fontSize = 13.sp
+            )
+        }
+
+        // Chevron
+        Icon(
+            imageVector = Icons.Rounded.ChevronRight,
+            contentDescription = null,
+            tint = secondaryTextColor,
+            modifier = Modifier.size(24.dp)
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun FolderExclusionDialog(
+    availableFolders: List<FolderInfo>,
+    excludedFolders: Set<String>,
+    isLoading: Boolean,
+    onAddExcludedFolder: (String) -> Unit,
+    onRemoveExcludedFolder: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val backgroundColor = MaterialTheme.colorScheme.surfaceContainerHigh
+    val textColor = MaterialTheme.colorScheme.onSurface
+    val secondaryTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+    
+    // Dialog entry animation
+    var dialogVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        dialogVisible = true
+    }
+    
+    AnimatedVisibility(
+        visible = dialogVisible,
+        enter = scaleIn(
+            initialScale = 0.8f,
+            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+        ) + fadeIn(tween(200)),
+        exit = scaleOut(targetScale = 0.8f) + fadeOut(tween(150))
+    ) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            containerColor = backgroundColor,
+            shape = RoundedCornerShape(32.dp),
+            icon = {
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(primaryColor.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.FolderOff,
+                        contentDescription = null,
+                        tint = primaryColor,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            },
+            title = {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Excluded Folders",
+                        color = textColor,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Songs from selected folders won't appear in your library",
+                        color = secondaryTextColor,
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            },
+            text = {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(320.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer
+                ) {
+                    when {
+                        isLoading -> {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(40.dp),
+                                        color = primaryColor,
+                                        strokeWidth = 3.dp
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text(
+                                        text = "Scanning folders...",
+                                        color = secondaryTextColor,
+                                        fontSize = 14.sp
+                                    )
+                                }
+                            }
+                        }
+                        availableFolders.isEmpty() -> {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Folder,
+                                        contentDescription = null,
+                                        tint = secondaryTextColor.copy(alpha = 0.5f),
+                                        modifier = Modifier.size(48.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text(
+                                        text = "No music folders found",
+                                        color = secondaryTextColor,
+                                        fontSize = 14.sp
+                                    )
+                                }
+                            }
+                        }
+                        else -> {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                itemsIndexed(availableFolders) { _, folder ->
+                                    val isExcluded = excludedFolders.contains(folder.path)
+                                    FolderItem(
+                                        folder = folder,
+                                        isExcluded = isExcluded,
+                                        onToggle = {
+                                            if (isExcluded) {
+                                                onRemoveExcludedFolder(folder.path)
+                                            } else {
+                                                onAddExcludedFolder(folder.path)
+                                            }
+                                        },
+                                        textColor = textColor,
+                                        secondaryTextColor = secondaryTextColor,
+                                        accentColor = primaryColor
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = onDismiss,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = primaryColor
+                    ),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.height(48.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.CheckCircle,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Done",
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun FolderItem(
+    folder: FolderInfo,
+    isExcluded: Boolean,
+    onToggle: () -> Unit,
+    textColor: Color,
+    secondaryTextColor: Color,
+    accentColor: Color
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onToggle
+            ),
+        shape = RoundedCornerShape(12.dp),
+        color = if (isExcluded) Color(0xFFE57373).copy(alpha = 0.08f) else Color.Transparent
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Checkbox
+            Checkbox(
+                checked = isExcluded,
+                onCheckedChange = { onToggle() },
+                colors = CheckboxDefaults.colors(
+                    checkedColor = Color(0xFFE57373),
+                    uncheckedColor = secondaryTextColor.copy(alpha = 0.5f),
+                    checkmarkColor = Color.White
+                )
+            )
+            
+            Spacer(modifier = Modifier.width(8.dp))
+            
+            // Folder icon
+            Icon(
+                imageVector = if (isExcluded) Icons.Rounded.FolderOff else Icons.Rounded.Folder,
+                contentDescription = null,
+                tint = if (isExcluded) Color(0xFFE57373) else accentColor,
+                modifier = Modifier.size(24.dp)
+            )
+            
+            Spacer(modifier = Modifier.width(12.dp))
+            
+            // Folder info
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = folder.displayName,
+                    color = if (isExcluded) Color(0xFFE57373) else textColor,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = "${folder.songCount} song${if (folder.songCount != 1) "s" else ""}",
+                    color = secondaryTextColor,
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
