@@ -1,0 +1,66 @@
+package com.ivor.ivormusic.service
+
+import android.content.Context
+import android.os.Build
+import android.os.Bundle
+import androidx.core.app.NotificationCompat
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.session.DefaultMediaNotificationProvider
+import androidx.media3.session.MediaNotification
+import androidx.media3.session.MediaSession
+
+/**
+ * Custom media notification provider that enables Android 16 Live Updates (Live Activities)
+ * for music playback notifications.
+ * 
+ * On Android 16+, this adds the requestPromotedOngoing flag to make the media notification
+ * appear as a Live Activity - showing prominently on lock screen, notification shade top,
+ * and as a status bar chip.
+ */
+@UnstableApi
+class LiveUpdateMediaNotificationProvider(
+    context: Context
+) : MediaNotification.Provider {
+    
+    private val defaultProvider = DefaultMediaNotificationProvider.Builder(context).build()
+    
+    companion object {
+        private const val TAG = "LiveUpdateMediaNotificationProvider"
+    }
+    
+    override fun createNotification(
+        mediaSession: MediaSession,
+        customLayout: com.google.common.collect.ImmutableList<androidx.media3.session.CommandButton>,
+        actionFactory: MediaNotification.ActionFactory,
+        onNotificationChangedCallback: MediaNotification.Provider.Callback
+    ): MediaNotification {
+        // Get the default notification from the default provider
+        val defaultNotification = defaultProvider.createNotification(
+            mediaSession, 
+            customLayout, 
+            actionFactory, 
+            onNotificationChangedCallback
+        )
+        
+        // For Android 16+, we need to modify the notification to request promoted ongoing status
+        if (Build.VERSION.SDK_INT >= 36) { // API 36 = Android 16
+            try {
+                // Add the live updates flag to the notification extras
+                val extras = defaultNotification.notification.extras ?: Bundle()
+                extras.putBoolean("android.requestPromotedOngoing", true)
+            } catch (e: Exception) {
+                // Silently fail if not supported
+            }
+        }
+        
+        return defaultNotification
+    }
+    
+    override fun handleCustomCommand(
+        session: MediaSession,
+        action: String,
+        extras: Bundle
+    ): Boolean {
+        return defaultProvider.handleCustomCommand(session, action, extras)
+    }
+}

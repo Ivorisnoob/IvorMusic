@@ -5,6 +5,7 @@ import android.content.Intent
 import android.util.Log
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
@@ -21,6 +22,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import com.google.common.util.concurrent.ListenableFuture
 import java.util.concurrent.ConcurrentHashMap
+
+@UnstableApi
 
 class MusicService : MediaLibraryService() {
     private var mediaLibrarySession: MediaLibrarySession? = null
@@ -42,6 +45,10 @@ class MusicService : MediaLibraryService() {
 
     override fun onCreate() {
         super.onCreate()
+        
+        // Set custom media notification provider for Android 16 Live Activities support
+        setMediaNotificationProvider(LiveUpdateMediaNotificationProvider(this))
+        
         initializeSessionAndPlayer()
     }
 

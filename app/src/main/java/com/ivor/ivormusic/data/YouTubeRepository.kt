@@ -297,26 +297,157 @@ class YouTubeRepository(private val context: Context) {
     }
 
     /**
-     * Get liked music.
+     * Get liked music with pagination support.
+     * YouTube Music API returns paginated results, so we need to fetch all pages.
      */
     suspend fun getLikedMusic(): List<Song> = withContext(Dispatchers.IO) {
-        if (sessionManager.isLoggedIn()) {
-            try {
-                val json = fetchInternalApi("FEmusic_liked_videos")
+        if (!sessionManager.isLoggedIn()) {
+            return@withContext getPlaylistInternal("LM")
+        }
+        
+        try {
+            val allSongs = mutableListOf<Song>()
+            var continuationToken: String? = null
+            var pageCount = 0
+            val maxPages = 10 // Safety limit to prevent infinite loops
+            
+            do {
+                val json = if (continuationToken == null) {
+                    fetchInternalApi("FEmusic_liked_videos")
+                } else {
+                    fetchContinuation(continuationToken)
+                }
+                
+                if (json.isEmpty()) break
+                
                 val songs = parseSongsFromInternalJson(json)
-                if (songs.isNotEmpty()) return@withContext songs
-            } catch (e: Exception) {
-                e.printStackTrace()
+                allSongs.addAll(songs)
+                
+                // Extract continuation token for next page
+                continuationToken = extractContinuationToken(json)
+                pageCount++
+                
+                android.util.Log.d("YouTubeRepo", "Liked songs page $pageCount: ${songs.size} songs, total: ${allSongs.size}")
+                
+            } while (continuationToken != null && pageCount < maxPages)
+            
+            if (allSongs.isNotEmpty()) {
+                return@withContext allSongs.distinctBy { it.id }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("YouTubeRepo", "Error fetching liked music", e)
+            e.printStackTrace()
+        }
+        
+        // Fallback to NewPipe method
+        getPlaylistInternal("LM")
+    }
+    
+    /**
+     * Fetch continuation page using continuation token.
+     */
+    private fun fetchContinuation(continuationToken: String): String {
+        val cookies = sessionManager.getCookies() ?: return ""
+        val authHeader = YouTubeAuthUtils.getAuthorizationHeader(cookies) ?: ""
+        
+        val jsonBody = """
+            {
+                "context": {
+                    "client": {
+                        "clientName": "WEB_REMIX",
+                        "clientVersion": "1.20230102.01.00",
+                        "hl": "en",
+                        "gl": "US"
+                    }
+                },
+                "continuation": "$continuationToken"
+            }
+        """.trimIndent()
+        
+        val request = okhttp3.Request.Builder()
+            .url("https://music.youtube.com/youtubei/v1/browse")
+            .post(jsonBody.toRequestBody("application/json".toMediaType()))
+            .addHeader("Cookie", cookies)
+            .addHeader("Authorization", authHeader)
+            .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            .addHeader("Origin", "https://music.youtube.com")
+            .addHeader("X-Goog-AuthUser", "0")
+            .build()
+        
+        return try {
+            val response = okHttpClient.newCall(request).execute()
+            response.body?.string() ?: ""
+        } catch (e: Exception) {
+            e.printStackTrace()
+            ""
+        }
+    }
+    
+    /**
+     * Extract continuation token from API response for pagination.
+     */
+    private fun extractContinuationToken(json: String): String? {
+        try {
+            val root = org.json.JSONObject(json)
+            val continuations = mutableListOf<String>()
+            
+            // Find all nextContinuationData or continuationEndpoint objects
+            findContinuationTokens(root, continuations)
+            
+            return continuations.firstOrNull()
+        } catch (e: Exception) {
+            // Ignore
+        }
+        return null
+    }
+    
+    private fun findContinuationTokens(node: Any, results: MutableList<String>) {
+        if (node is org.json.JSONObject) {
+            // Check for nextContinuationData
+            if (node.has("nextContinuationData")) {
+                val token = node.optJSONObject("nextContinuationData")?.optString("continuation")
+                if (!token.isNullOrEmpty()) {
+                    results.add(token)
+                    return
+                }
+            }
+            // Check for continuationEndpoint
+            if (node.has("continuationEndpoint")) {
+                val token = node.optJSONObject("continuationEndpoint")
+                    ?.optJSONObject("continuationCommand")
+                    ?.optString("token")
+                if (!token.isNullOrEmpty()) {
+                    results.add(token)
+                    return
+                }
+            }
+            // Recurse
+            val keys = node.keys()
+            while (keys.hasNext()) {
+                val nextKey = keys.next()
+                findContinuationTokens(node.get(nextKey), results)
+            }
+        } else if (node is org.json.JSONArray) {
+            for (i in 0 until node.length()) {
+                findContinuationTokens(node.get(i), results)
             }
         }
-        getPlaylist("LM") 
     }
     
     suspend fun getPlaylist(playlistId: String): List<Song> = withContext(Dispatchers.IO) {
-        // Fix for "Your Likes" playlist not loading: redirect to the working getLikedMusic() method
+        // For "Your Likes" playlist, use getLikedMusic which handles pagination
         if (playlistId == "LM" || playlistId == "VLLM") {
             return@withContext getLikedMusic()
         }
+        
+        // For other playlists, use internal method
+        getPlaylistInternal(playlistId)
+    }
+    
+    /**
+     * Internal playlist fetching without the LM redirect to avoid infinite recursion.
+     */
+    private suspend fun getPlaylistInternal(playlistId: String): List<Song> = withContext(Dispatchers.IO) {
 
         val newPipeSongs = try {
              val urlId = if (playlistId.startsWith("VL")) playlistId.removePrefix("VL") else playlistId
@@ -593,7 +724,12 @@ class YouTubeRepository(private val context: Context) {
                          val title = getRunText(item.optJSONObject("title")) ?: "Unknown Playlist"
                          
                          // Extract Subtitle (Uploader / Count)
-                         val subtitle = getRunText(item.optJSONObject("subtitle")) ?: "Unknown"
+                         val subtitleObj = item.optJSONObject("subtitle")
+                         val subtitle = getRunText(subtitleObj) ?: "Unknown"
+                         
+                         // Extract item count from subtitle
+                         // Subtitle usually contains patterns like "100 songs" or "Playlist • 50 songs"
+                         val itemCount = extractItemCountFromSubtitle(subtitleObj)
                          
                          // Extract Thumbnail
                          val thumbnails = item.optJSONObject("thumbnailRenderer")
@@ -609,6 +745,7 @@ class YouTubeRepository(private val context: Context) {
                              name = title,
                              url = "https://music.youtube.com/playlist?list=$cleanId",
                              uploaderName = subtitle,
+                             itemCount = itemCount,
                              thumbnailUrl = thumbnailUrl
                          ))
                      }
@@ -620,6 +757,45 @@ class YouTubeRepository(private val context: Context) {
             e.printStackTrace()
         }
         return playlists 
+    }
+    
+    /**
+     * Extract item count from playlist subtitle.
+     * The subtitle typically contains patterns like "100 songs", "50 videos", etc.
+     */
+    private fun extractItemCountFromSubtitle(subtitleObj: org.json.JSONObject?): Int {
+        if (subtitleObj == null) return -1
+        
+        try {
+            // Try to find count in runs array
+            val runs = subtitleObj.optJSONArray("runs")
+            if (runs != null) {
+                for (i in 0 until runs.length()) {
+                    val runText = runs.optJSONObject(i)?.optString("text") ?: continue
+                    // Look for patterns like "100 songs", "50 videos", "25 tracks"
+                    val countMatch = Regex("""(\d+)\s*(songs?|videos?|tracks?)""", RegexOption.IGNORE_CASE).find(runText)
+                    if (countMatch != null) {
+                        return countMatch.groupValues[1].toIntOrNull() ?: -1
+                    }
+                    // Also check for just numbers that might represent count
+                    val numberMatch = Regex("""^(\d+)$""").find(runText.trim())
+                    if (numberMatch != null) {
+                        return numberMatch.groupValues[1].toIntOrNull() ?: -1
+                    }
+                }
+            }
+            
+            // Try from simpleText
+            val simpleText = subtitleObj.optString("simpleText", "")
+            val countMatch = Regex("""(\d+)\s*(songs?|videos?|tracks?)""", RegexOption.IGNORE_CASE).find(simpleText)
+            if (countMatch != null) {
+                return countMatch.groupValues[1].toIntOrNull() ?: -1
+            }
+        } catch (e: Exception) {
+            // Ignore
+        }
+        
+        return -1
     }
 
     // --- JSON Helpers ---

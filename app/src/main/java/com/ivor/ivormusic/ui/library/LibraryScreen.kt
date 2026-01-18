@@ -377,7 +377,7 @@ fun LibraryScreen(
                                                 color = textColor
                                             )
                                             Text(
-                                                "${playlist.itemCount} songs",
+                                                if (playlist.itemCount > 0) "${playlist.itemCount} songs" else "Playlist",
                                                 style = MaterialTheme.typography.labelMedium,
                                                 color = secondaryTextColor
                                             )
@@ -474,7 +474,7 @@ fun LibraryScreen(
                             ) {
                                 ListItem(
                                     headlineContent = { Text(playlist.name ?: "Unknown", fontWeight = FontWeight.Bold, color = textColor) },
-                                    supportingContent = { Text("${playlist.itemCount} songs", color = secondaryTextColor) },
+                                    supportingContent = { Text(if (playlist.itemCount > 0) "${playlist.itemCount} songs" else "Playlist", color = secondaryTextColor) },
                                     leadingContent = {
                                         Surface(
                                             modifier = Modifier.size(56.dp),
