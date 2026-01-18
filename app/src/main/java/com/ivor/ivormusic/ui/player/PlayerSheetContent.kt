@@ -367,7 +367,8 @@ private fun ExpressiveNowPlayingView(
                         contentAlignment = Alignment.Center
                     ) {
                         // Guard against invalid dimensions during transitions
-                        if (maxWidth <= 0.dp || maxHeight <= 0.dp) {
+                        // Use minimum usable size (not just zero) for high DPI compatibility
+                        if (maxWidth < 50.dp || maxHeight < 50.dp) {
                             return@BoxWithConstraints
                         }
                         

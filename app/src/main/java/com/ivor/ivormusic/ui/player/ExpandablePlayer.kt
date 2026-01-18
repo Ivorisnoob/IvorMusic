@@ -138,29 +138,39 @@ fun ExpandablePlayer(
                 contentKey = { it }
             ) { targetExpanded ->
                 if (targetExpanded) {
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        when (playerStyle) {
-                            PlayerStyle.CLASSIC -> {
-                                PlayerSheetContent(
-                                    viewModel = viewModel,
-                                    ambientBackground = ambientBackground,
-                                    onCollapse = { onExpandChange(false) },
-                                    onLoadMore = {
-                                        viewModel.loadMoreRecommendations()
-                                    },
-                                    onArtistClick = onArtistClick
-                                )
-                            }
-                            PlayerStyle.GESTURE -> {
-                                GesturePlayerSheetContent(
-                                    viewModel = viewModel,
-                                    ambientBackground = ambientBackground,
-                                    onCollapse = { onExpandChange(false) },
-                                    onLoadMore = {
-                                        viewModel.loadMoreRecommendations()
-                                    },
-                                    onArtistClick = onArtistClick
-                                )
+                    // Guard: Skip rendering complex player content when height is too small
+                    // This prevents IllegalArgumentException: maxWidth >= minWidth constraint failures
+                    // during the collapse/expand animation when container dimensions are invalid
+                    // Use relative threshold (25% of screen) to work on all DPI settings
+                    val minSafeHeight = screenHeight * 0.25f
+                    if (height < minSafeHeight) {
+                        // Show simple placeholder during animation transition
+                        Box(modifier = Modifier.fillMaxSize())
+                    } else {
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            when (playerStyle) {
+                                PlayerStyle.CLASSIC -> {
+                                    PlayerSheetContent(
+                                        viewModel = viewModel,
+                                        ambientBackground = ambientBackground,
+                                        onCollapse = { onExpandChange(false) },
+                                        onLoadMore = {
+                                            viewModel.loadMoreRecommendations()
+                                        },
+                                        onArtistClick = onArtistClick
+                                    )
+                                }
+                                PlayerStyle.GESTURE -> {
+                                    GesturePlayerSheetContent(
+                                        viewModel = viewModel,
+                                        ambientBackground = ambientBackground,
+                                        onCollapse = { onExpandChange(false) },
+                                        onLoadMore = {
+                                            viewModel.loadMoreRecommendations()
+                                        },
+                                        onArtistClick = onArtistClick
+                                    )
+                                }
                             }
                         }
                     }

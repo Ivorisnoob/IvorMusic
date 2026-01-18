@@ -362,6 +362,12 @@ private fun GestureNowPlayingView(
                         .padding(horizontal = 0.dp),
                     contentAlignment = Alignment.Center
                 ) {
+                    // Guard against invalid dimensions during collapse transitions
+                    // Use minimum usable size (not just zero) for high DPI compatibility
+                    if (maxWidth < 50.dp || maxHeight < 50.dp) {
+                        return@BoxWithConstraints
+                    }
+                    
                     // Use FULL available width for HUGE album art - ensure positive size
                     val albumSize = maxWidth.coerceAtLeast(1.dp)
                     
@@ -702,7 +708,8 @@ private fun SwipeableAlbumCarousel(
         contentAlignment = Alignment.Center
     ) {
         // Guard against invalid dimensions during transitions
-        if (maxWidth <= 0.dp || maxHeight <= 0.dp) {
+        // Use minimum usable size (not just zero) for high DPI compatibility
+        if (maxWidth < 50.dp || maxHeight < 50.dp) {
             return@BoxWithConstraints
         }
         
@@ -906,7 +913,8 @@ private fun SingleAlbumArt(
         contentAlignment = Alignment.Center
     ) {
         // Guard against invalid dimensions during transitions
-        if (maxWidth <= 0.dp || maxHeight <= 0.dp) {
+        // Use minimum usable size (not just zero) for high DPI compatibility
+        if (maxWidth < 50.dp || maxHeight < 50.dp) {
             return@BoxWithConstraints
         }
         
