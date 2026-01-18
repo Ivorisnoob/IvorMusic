@@ -49,6 +49,61 @@ class LyricsRepository {
             return@withContext LyricsResult.Success(it) 
         }
         
+        // Retry configuration
+        val maxRetries = 3
+        var lastError: String? = null
+        
+        for (attempt in 1..maxRetries) {
+            try {
+                val result = fetchLyricsInternal(songId, title, artist, durationMs)
+                
+                when (result) {
+                    is LyricsResult.Success -> return@withContext result
+                    is LyricsResult.NotFound -> return@withContext result
+                    is LyricsResult.Error -> {
+                        lastError = result.message
+                        // Check if error is retryable
+                        val isRetryable = result.message.contains("400") || 
+                                          result.message.contains("429") || 
+                                          result.message.contains("500") ||
+                                          result.message.contains("502") ||
+                                          result.message.contains("503") ||
+                                          result.message.contains("timeout", ignoreCase = true)
+                        
+                        if (isRetryable && attempt < maxRetries) {
+                            // Exponential backoff: 500ms, 1000ms, 2000ms
+                            val delayMs = 500L * (1 shl (attempt - 1))
+                            Log.d(TAG, "Retrying lyrics fetch (attempt $attempt/$maxRetries) after ${delayMs}ms for: $title")
+                            kotlinx.coroutines.delay(delayMs)
+                            continue
+                        }
+                        return@withContext result
+                    }
+                    else -> return@withContext result
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching lyrics (attempt $attempt)", e)
+                lastError = e.message ?: "Unknown error"
+                
+                if (attempt < maxRetries) {
+                    val delayMs = 500L * (1 shl (attempt - 1))
+                    kotlinx.coroutines.delay(delayMs)
+                }
+            }
+        }
+        
+        LyricsResult.Error(lastError ?: "Failed after $maxRetries attempts")
+    }
+    
+    /**
+     * Internal lyrics fetch without retry logic.
+     */
+    private suspend fun fetchLyricsInternal(
+        songId: String,
+        title: String,
+        artist: String,
+        durationMs: Long
+    ): LyricsResult = withContext(Dispatchers.IO) {
         try {
             val durationSeconds = (durationMs / 1000).toInt()
             
@@ -105,6 +160,12 @@ class LyricsRepository {
                     LyricsResult.Error("Failed to fetch lyrics (${response.code})")
                 }
             }
+        } catch (e: java.net.SocketTimeoutException) {
+            Log.e(TAG, "Timeout fetching lyrics", e)
+            LyricsResult.Error("Connection timeout")
+        } catch (e: java.io.IOException) {
+            Log.e(TAG, "Network error fetching lyrics", e)
+            LyricsResult.Error("Network error: ${e.message}")
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching lyrics", e)
             LyricsResult.Error(e.message ?: "Unknown error")
