@@ -178,12 +178,17 @@ class LyricsRepository {
     private fun extractSyncedLyrics(json: String): String? {
         return try {
             val jsonObject = org.json.JSONObject(json)
-            jsonObject.optString("syncedLyrics", null)
+            if (jsonObject.has("syncedLyrics") && !jsonObject.isNull("syncedLyrics")) {
+                jsonObject.getString("syncedLyrics")
+            } else {
+                null
+            }
         } catch (e: Exception) {
             Log.e(TAG, "JSON parse error", e)
             null
         }
     }
+
     
     /**
      * Parse LRC format lyrics into structured LrcLine objects.

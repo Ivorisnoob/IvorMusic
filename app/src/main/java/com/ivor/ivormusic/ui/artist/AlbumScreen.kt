@@ -66,7 +66,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.graphics.shapes.toPath
+import androidx.compose.ui.unit.dp
+import androidx.compose.material3.MaterialShapes
+import androidx.compose.material3.toShape
 import coil.compose.AsyncImage
 import com.ivor.ivormusic.data.Song
 
@@ -121,11 +123,8 @@ fun AlbumScreen(
     }
     
     // Create 8-sided polygon shape for Play button
-    val octagonShape = remember {
-        PolygonShape(
-             androidx.compose.material3.MaterialShapes.Cookie9Sided
-        )
-    }
+    // Create 8-sided polygon shape for Play button
+    val octagonShape = MaterialShapes.Cookie9Sided.toShape()
     
     Box(
         modifier = modifier
@@ -372,9 +371,7 @@ private fun AlbumHeroHeader(
                 .offset(y = 40.dp) // Seat it on the edge of the header (half overlap)
                 .padding(end = 24.dp)
         ) {
-            val octagonShape = remember {
-                PolygonShape(androidx.compose.material3.MaterialShapes.Cookie9Sided)
-            }
+            val octagonShape = MaterialShapes.Cookie9Sided.toShape()
             val interactionSource = remember { MutableInteractionSource() }
             val isPressed by interactionSource.collectIsPressedAsState()
             val scale by animateFloatAsState(

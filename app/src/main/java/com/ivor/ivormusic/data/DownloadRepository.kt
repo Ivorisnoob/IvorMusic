@@ -97,7 +97,7 @@ class DownloadRepository(private val context: Context) {
                         duration = obj.getLong("duration"),
                         uri = Uri.fromFile(file),
                         albumArtUri = if (obj.has("albumArtUrl")) Uri.parse(obj.getString("albumArtUrl")) else null,
-                        thumbnailUrl = obj.optString("albumArtUrl", null),
+                        thumbnailUrl = if (obj.has("albumArtUrl") && !obj.isNull("albumArtUrl")) obj.getString("albumArtUrl") else null,
                         source = SongSource.LOCAL
                     ))
                 }

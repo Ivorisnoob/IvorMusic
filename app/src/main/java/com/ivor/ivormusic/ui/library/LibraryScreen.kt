@@ -91,9 +91,9 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.graphics.shapes.CornerRounding
-import androidx.graphics.shapes.RoundedPolygon
-import androidx.graphics.shapes.toPath
+// MaterialShapes and toShape are needed
+import androidx.compose.material3.MaterialShapes
+import androidx.compose.material3.toShape
 import coil.compose.AsyncImage
 import com.ivor.ivormusic.data.Song
 import com.ivor.ivormusic.ui.home.HomeViewModel
@@ -111,41 +111,7 @@ private fun getSegmentedShape(index: Int, count: Int, cornerSize: androidx.compo
     }
 }
 
-// Helper to convert Expressive Polygons to a Compose Shape
-class PolygonShape(private val polygon: RoundedPolygon) : Shape {
-    override fun createOutline(
-        size: Size,
-        layoutDirection: LayoutDirection,
-        density: Density
-    ): Outline {
-        val path = polygon.toPath().asComposePath()
-        
-        // Calculate bounds to ensure correct scaling
-        val bounds = FloatArray(4)
-        polygon.calculateBounds(bounds)
-        val left = bounds[0]
-        val top = bounds[1]
-        val right = bounds[2]
-        val bottom = bounds[3]
-        val width = right - left
-        val height = bottom - top
-
-        // Scale the path to fit the component size
-        val matrix = androidx.compose.ui.graphics.Matrix()
-        // Prevent division by zero
-        val safeWidth = if (width > 0) width else 1f
-        val safeHeight = if (height > 0) height else 1f
-        
-        matrix.scale(
-            x = size.width / safeWidth, 
-            y = size.height / safeHeight
-        )
-        matrix.translate(-left * (size.width / safeWidth), -top * (size.height / safeHeight))
-        path.transform(matrix)
-        
-        return Outline.Generic(path)
-    }
-}
+// MaterialShapes.toShape() is used directly - no custom PolygonShape needed
 
 /**
  * Library Screen with Material 3 Expressive design
@@ -1010,9 +976,7 @@ fun PlaylistDetailScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 // Create octagon shape
-                                val expressiveShape = remember {
-                                     PolygonShape(androidx.compose.material3.MaterialShapes.Cookie9Sided)
-                                }
+                                val expressiveShape = MaterialShapes.Cookie9Sided.toShape()
                                 
                                 Surface(
                                     onClick = { if (songs.isNotEmpty()) onPlayQueue(songs, null) },

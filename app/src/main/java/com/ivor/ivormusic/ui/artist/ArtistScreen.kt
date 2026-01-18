@@ -59,25 +59,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Matrix
-import androidx.compose.ui.graphics.Outline
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.graphics.shapes.RoundedPolygon
-import androidx.graphics.shapes.toPath
+import androidx.compose.material3.MaterialShapes
+import androidx.compose.material3.toShape
 import coil.compose.AsyncImage
 import com.ivor.ivormusic.data.Song
 import com.ivor.ivormusic.ui.home.HomeViewModel
@@ -96,41 +89,7 @@ private fun getSegmentedShape(index: Int, count: Int, cornerSize: androidx.compo
     }
 }
 
-/**
- * Helper class to create Material 3 Expressive shapes from RoundedPolygon
- */
-internal class PolygonShape(
-    private val polygon: RoundedPolygon
-) : Shape {
-    private var path = Path()
-
-    override fun createOutline(
-        size: Size,
-        layoutDirection: LayoutDirection,
-        density: Density
-    ): Outline {
-        val path = polygon.toPath().asComposePath()
-        
-        // Calculate bounds to ensure correct scaling
-        val bounds = FloatArray(4)
-        polygon.calculateBounds(bounds)
-        val left = bounds[0]
-        val top = bounds[1]
-        val right = bounds[2]
-        val bottom = bounds[3]
-        val width = right - left
-        val height = bottom - top
-
-        val matrix = Matrix()
-        val safeWidth = if (width > 0) width else 1f
-        val safeHeight = if (height > 0) height else 1f
-        
-        matrix.scale(size.width / safeWidth, size.height / safeHeight)
-        matrix.translate(-left * (size.width / safeWidth), -top * (size.height / safeHeight))
-        path.transform(matrix)
-        return Outline.Generic(path)
-    }
-}
+// MaterialShapes.toShape() is used directly - no custom PolygonShape needed
 
 /**
  * 🌟 Material 3 Expressive Artist Screen
@@ -686,9 +645,7 @@ private fun ArtistHeroHeader(
                 .offset(y = 40.dp) // Seat it on the edge of the header (half overlap)
                 .padding(end = 24.dp)
         ) {
-            val octagonShape = remember {
-                PolygonShape(androidx.compose.material3.MaterialShapes.Cookie9Sided)
-            }
+            val playButtonShape = MaterialShapes.Cookie9Sided.toShape()
             val interactionSource = remember { MutableInteractionSource() }
             val isPressed by interactionSource.collectIsPressedAsState()
             val scale by animateFloatAsState(
@@ -708,7 +665,7 @@ private fun ArtistHeroHeader(
                         scaleX = scale
                         scaleY = scale
                     },
-                shape = octagonShape,
+                shape = playButtonShape,
                 color = primaryColor,
                 shadowElevation = 8.dp,
                 interactionSource = interactionSource
