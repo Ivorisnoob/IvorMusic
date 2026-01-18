@@ -1,6 +1,11 @@
 package com.ivor.ivormusic.ui.library
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -970,32 +975,49 @@ fun PlaylistDetailScreen(
                             
                             Spacer(modifier = Modifier.height(20.dp))
                             
-                            // Big centered Play button with Expressive shape
-                            Box(
-                                modifier = Modifier.fillMaxWidth(),
-                                contentAlignment = Alignment.Center
+                        }
+                        
+                        // Seated Floating Play Button
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .offset(y = 40.dp) // Seat it on the edge of the header (half overlap)
+                        ) {
+                            val octagonShape = MaterialShapes.Cookie9Sided.toShape()
+                            val interactionSource = remember { MutableInteractionSource() }
+                            val isPressed by interactionSource.collectIsPressedAsState()
+                            val scale by animateFloatAsState(
+                                targetValue = if (isPressed) 0.92f else 1f,
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                    stiffness = Spring.StiffnessLow
+                                ),
+                                label = "playAllButtonScale"
+                            )
+                            
+                            Surface(
+                                onClick = { if (songs.isNotEmpty()) onPlayQueue(songs, null) },
+                                modifier = Modifier
+                                    .size(80.dp)
+                                    .graphicsLayer { 
+                                        scaleX = scale
+                                        scaleY = scale
+                                    },
+                                shape = octagonShape,
+                                color = primaryColor,
+                                shadowElevation = 8.dp,
+                                interactionSource = interactionSource
                             ) {
-                                // Use the built-in extension to convert the Expressive Polygon to a Shape
-                                val expressiveShape = MaterialShapes.Cookie9Sided.toShape()
-                                
-                                Surface(
-                                    onClick = { if (songs.isNotEmpty()) onPlayQueue(songs, null) },
-                                    modifier = Modifier.size(80.dp),
-                                    shape = expressiveShape,
-                                    color = primaryColor,
-                                    shadowElevation = 12.dp
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Box(
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            Icons.Rounded.PlayArrow,
-                                            contentDescription = "Play All",
-                                            modifier = Modifier.size(40.dp),
-                                            tint = MaterialTheme.colorScheme.onPrimary
-                                        )
-                                    }
+                                    Icon(
+                                        imageVector = Icons.Rounded.PlayArrow,
+                                        contentDescription = "Play All",
+                                        modifier = Modifier.size(40.dp),
+                                        tint = MaterialTheme.colorScheme.onPrimary
+                                    )
                                 }
                             }
                         }
