@@ -45,6 +45,7 @@ class DownloadRepository(private val context: Context) {
         .build()
 
     private val youtubeRepository = YouTubeRepository(context)
+    private val notificationHelper = DownloadNotificationHelper(context)
 
     private val downloadsFile = File(context.filesDir, "downloaded_songs_metadata.json")
     private val musicDir = File(context.filesDir, "music")
@@ -135,12 +136,43 @@ class DownloadRepository(private val context: Context) {
         val current = _downloadProgress.value.toMutableMap()
         current[songId] = DownloadProgress(songId, song, progress, status, bytesDownloaded, totalBytes)
         _downloadProgress.value = current
+        
+        // Update notification
+        when (status) {
+            DownloadStatus.DOWNLOADING -> {
+                notificationHelper.showDownloadProgress(
+                    songId = songId,
+                    songTitle = song.title,
+                    artistName = song.artist,
+                    progress = progress,
+                    bytesDownloaded = bytesDownloaded,
+                    totalBytes = totalBytes
+                )
+            }
+            DownloadStatus.DOWNLOADED -> {
+                notificationHelper.showDownloadComplete(
+                    songId = songId,
+                    songTitle = song.title,
+                    artistName = song.artist
+                )
+            }
+            DownloadStatus.FAILED -> {
+                notificationHelper.showDownloadFailed(
+                    songId = songId,
+                    songTitle = song.title
+                )
+            }
+            else -> { /* No notification for other statuses */ }
+        }
     }
 
     private fun removeProgress(songId: String) {
         val current = _downloadProgress.value.toMutableMap()
         current.remove(songId)
         _downloadProgress.value = current
+        
+        // Dismiss notification when progress is removed
+        notificationHelper.dismissNotification(songId)
     }
 
     suspend fun downloadSong(song: Song) = withContext(Dispatchers.IO) {
