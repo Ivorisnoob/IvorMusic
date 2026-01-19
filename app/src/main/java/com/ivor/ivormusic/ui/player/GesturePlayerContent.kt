@@ -24,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.rounded.*
+import androidx.compose.material.icons.rounded.PlaylistAdd
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -95,6 +96,8 @@ fun GesturePlayerSheetContent(
     
     var showQueue by remember { mutableStateOf(false) }
     var showLyrics by remember { mutableStateOf(false) }
+    var showAddToPlaylist by remember { mutableStateOf(false) }
+    val localPlaylists by viewModel.localPlaylists.collectAsState()
 
     val surfaceColor = MaterialTheme.colorScheme.background
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -147,6 +150,7 @@ fun GesturePlayerSheetContent(
                     ambientBackground = ambientBackground,
                     onCollapse = onCollapse,
                     onShowQueue = { showQueue = true },
+                    onShowAddToPlaylist = { showAddToPlaylist = true }, // Pass callback
                     onArtistClick = onArtistClick,
                     onToggleShuffle = { viewModel.toggleShuffle() },
                     onToggleRepeat = { viewModel.toggleRepeat() },
@@ -154,6 +158,7 @@ fun GesturePlayerSheetContent(
                     onToggleDownload = { currentSong?.let { viewModel.toggleDownload(it) } },
                     onPlayPauseToggle = { viewModel.togglePlayPause() },
                     onSongChange = { song -> viewModel.playQueue(currentQueue, song) },
+
                     isDownloaded = currentSong?.let { viewModel.isDownloaded(it.id) } ?: false,
                     isDownloading = currentSong?.let { viewModel.isDownloading(it.id) } ?: false,
                     isLocalOriginal = currentSong?.let { viewModel.isLocalOriginal(it) } ?: false,
@@ -163,6 +168,21 @@ fun GesturePlayerSheetContent(
                 )
             }
         }
+    }
+
+    if (showAddToPlaylist) {
+        AddToPlaylistSheet(
+            playlists = localPlaylists,
+            onPlaylistClick = { playlist ->
+                viewModel.addToPlaylist(playlist.id)
+                showAddToPlaylist = false
+            },
+            onCreateNewClick = { name, desc ->
+                viewModel.createPlaylist(name, desc)
+                showAddToPlaylist = false
+            },
+            onDismissRequest = { showAddToPlaylist = false }
+        )
     }
 }
 
@@ -188,6 +208,7 @@ private fun GestureNowPlayingView(
     ambientBackground: Boolean,
     onCollapse: () -> Unit,
     onShowQueue: () -> Unit,
+    onShowAddToPlaylist: () -> Unit, // Add param
     onArtistClick: (String) -> Unit,
     onToggleShuffle: () -> Unit,
     onToggleRepeat: () -> Unit,
@@ -341,6 +362,12 @@ private fun GestureNowPlayingView(
                         .padding(horizontal = 0.dp),
                     contentAlignment = Alignment.Center
                 ) {
+                    // Guard against invalid dimensions during collapse transitions
+                    // Use minimum usable size (not just zero) for high DPI compatibility
+                    if (maxWidth < 50.dp || maxHeight < 50.dp) {
+                        return@BoxWithConstraints
+                    }
+                    
                     // Use FULL available width for HUGE album art - ensure positive size
                     val albumSize = maxWidth.coerceAtLeast(1.dp)
                     
@@ -503,6 +530,7 @@ private fun GestureNowPlayingView(
                     isDownloaded = isDownloaded,
                     isDownloading = isDownloading,
                     isLocalOriginal = isLocalOriginal,
+                    onShowAddToPlaylist = onShowAddToPlaylist,
                     onToggleShuffle = onToggleShuffle,
                     onToggleRepeat = onToggleRepeat,
                     onToggleFavorite = onToggleFavorite,
@@ -530,6 +558,7 @@ private fun GesturePlayerToolbar(
     isDownloaded: Boolean,
     isDownloading: Boolean,
     isLocalOriginal: Boolean,
+    onShowAddToPlaylist: () -> Unit,
     onToggleShuffle: () -> Unit,
     onToggleRepeat: () -> Unit,
     onToggleFavorite: () -> Unit,
@@ -619,6 +648,14 @@ private fun GesturePlayerToolbar(
                         }
                     }
                 }
+                
+                // Add to Playlist Button
+                IconButton(onClick = onShowAddToPlaylist) {
+                    Icon(
+                        imageVector = Icons.Rounded.PlaylistAdd,
+                        contentDescription = "Add to Playlist"
+                    )
+                }
             }
         )
     }
@@ -670,6 +707,12 @@ private fun SwipeableAlbumCarousel(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
+        // Guard against invalid dimensions during transitions
+        // Use minimum usable size (not just zero) for high DPI compatibility
+        if (maxWidth < 50.dp || maxHeight < 50.dp) {
+            return@BoxWithConstraints
+        }
+        
         // Sizing calculations - BIGGER for better visibility
         val albumSize = (minOf(maxWidth * 0.90f, maxHeight * 0.95f)).coerceAtLeast(1.dp)
         val cornerRadius = albumSize * 0.08f
@@ -869,6 +912,12 @@ private fun SingleAlbumArt(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
+        // Guard against invalid dimensions during transitions
+        // Use minimum usable size (not just zero) for high DPI compatibility
+        if (maxWidth < 50.dp || maxHeight < 50.dp) {
+            return@BoxWithConstraints
+        }
+        
         // Use 98% of available space for HUGE album art - ensure positive size
         val albumSize = (minOf(maxWidth, maxHeight) * 0.98f).coerceAtLeast(1.dp)
         val cornerRadius = (albumSize * 0.10f).coerceAtLeast(0.dp)

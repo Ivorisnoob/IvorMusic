@@ -427,6 +427,11 @@ private fun ArtistHeroHeader(
             .fillMaxWidth()
             .height(440.dp)
     ) {
+        // Guard against invalid dimensions during transitions
+        if (maxWidth <= 0.dp || maxHeight <= 0.dp) {
+            return@BoxWithConstraints
+        }
+        
         val width = maxWidth
         val height = maxHeight
         
@@ -641,9 +646,8 @@ private fun ArtistHeroHeader(
         // Seated Floating Play Button
         Box(
             modifier = Modifier
-                .align(Alignment.BottomEnd)
+                .align(Alignment.BottomCenter)
                 .offset(y = 40.dp) // Seat it on the edge of the header (half overlap)
-                .padding(end = 24.dp)
         ) {
             val playButtonShape = MaterialShapes.Cookie9Sided.toShape()
             val interactionSource = remember { MutableInteractionSource() }
