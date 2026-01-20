@@ -284,7 +284,7 @@ APKs are split by ABI for optimized sizes:
 
 ## Roadmap
 
-- [ ] Enhanced Playlist Management — Create & edit playlists
+- [x] Enhanced Playlist Management — Create & edit playlists
 - [ ] Advanced Audio — Equalizer, gapless playback, crossfade
 - [x] Lyrics Support — Display synced lyrics
 - [ ] Widget — Home screen music controls
