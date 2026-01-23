@@ -178,6 +178,16 @@ fun SettingsScreen(
     homeViewModel: com.ivor.ivormusic.ui.home.HomeViewModel,
     onLogoutClick: () -> Unit,
     onBackClick: () -> Unit,
+    cacheEnabled: Boolean,
+    onCacheEnabledToggle: (Boolean) -> Unit,
+    maxCacheSizeMb: Long,
+    onMaxCacheSizeMbChange: (Long) -> Unit,
+    currentCacheSize: Long,
+    onClearCacheClick: () -> Unit,
+    crossfadeEnabled: Boolean,
+    onCrossfadeEnabledToggle: (Boolean) -> Unit,
+    crossfadeDurationMs: Int,
+    onCrossfadeDurationChange: (Int) -> Unit,
     contentPadding: PaddingValues = PaddingValues()
 ) {
     val context = LocalContext.current
@@ -309,6 +319,158 @@ fun SettingsScreen(
                             textColor = textColor,
                             secondaryTextColor = secondaryTextColor,
                             accentColor = accentColor
+                        )
+                    }
+                }
+            }
+
+            // Playback Section
+            item {
+                AnimatedSettingsSection(
+                    title = "Playback",
+                    textColor = secondaryTextColor,
+                    visible = isVisible,
+                    delay = 35
+                ) {
+                    ExpressiveSettingsCard(surfaceColor = surfaceColor) {
+                        // Crossfade Toggle
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Crossfade",
+                                    color = textColor,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Smoothly fade between songs",
+                                    color = secondaryTextColor,
+                                    fontSize = 13.sp
+                                )
+                            }
+                            Switch(
+                                checked = crossfadeEnabled,
+                                onCheckedChange = onCrossfadeEnabledToggle,
+                                colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = accentColor)
+                            )
+                        }
+                        
+                        AnimatedVisibility(visible = crossfadeEnabled) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                            ) {
+                                Text(
+                                    text = "Duration: ${crossfadeDurationMs / 1000}s",
+                                    color = textColor,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                androidx.compose.material3.Slider(
+                                    value = crossfadeDurationMs.toFloat(),
+                                    onValueChange = { onCrossfadeDurationChange(it.toInt()) },
+                                    valueRange = 1000f..12000f,
+                                    steps = 10,
+                                    colors = androidx.compose.material3.SliderDefaults.colors(
+                                        thumbColor = accentColor,
+                                        activeTrackColor = accentColor
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Storage & Cache Section
+            item {
+                AnimatedSettingsSection(
+                    title = "Storage & Cache",
+                    textColor = secondaryTextColor,
+                    visible = isVisible,
+                    delay = 40
+                ) {
+                    ExpressiveSettingsCard(surfaceColor = surfaceColor) {
+                        // Cache Size Display (Expressive Card)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(accentColor.copy(alpha = 0.1f))
+                                .padding(16.dp)
+                        ) {
+                             Row(verticalAlignment = Alignment.CenterVertically) {
+                                 Icon(
+                                     imageVector = Icons.Rounded.Folder,
+                                     contentDescription = null,
+                                     tint = accentColor,
+                                     modifier = Modifier.size(32.dp)
+                                 )
+                                 Spacer(modifier = Modifier.width(16.dp))
+                                 Column {
+                                     Text(
+                                         text = "Local Cache",
+                                         color = textColor,
+                                         fontWeight = FontWeight.SemiBold,
+                                         fontSize = 16.sp
+                                     )
+                                     Text(
+                                         text = com.ivor.ivormusic.data.CacheManager.formatSize(currentCacheSize), 
+                                         color = accentColor,
+                                         fontWeight = FontWeight.Bold,
+                                         fontSize = 24.sp
+                                     )
+                                 }
+                             }
+                        }
+                        
+                        // Limit Selector
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = "Max Cache Size",
+                                color = secondaryTextColor,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                            SingleChoiceSegmentedButtonRow(
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                val options = listOf(256L, 512L, 1024L, 2048L)
+                                val labels = listOf("256MB", "512MB", "1GB", "2GB")
+                                
+                                options.forEachIndexed { index, size ->
+                                    SegmentedButton(
+                                        selected = maxCacheSizeMb == size,
+                                        onClick = { onMaxCacheSizeMbChange(size) },
+                                        shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size)
+                                    ) {
+                                        Text(text = labels[index])
+                                    }
+                                }
+                            }
+                        }
+                        
+                        SettingsDivider()
+                        
+                        // Clear Cache Button
+                        ExpressiveSettingsItem(
+                            icon = Icons.Rounded.FolderOff,
+                            title = "Clear Cache",
+                            subtitle = "Free up storage space",
+                            onClick = onClearCacheClick,
+                            textColor = Color(0xFFE53935),
+                            secondaryTextColor = secondaryTextColor,
+                            iconTint = Color(0xFFE53935)
                         )
                     }
                 }

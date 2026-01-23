@@ -57,6 +57,13 @@ class MainActivity : ComponentActivity() {
             val saveVideoHistory by themeViewModel.saveVideoHistory.collectAsState()
             val excludedFolders by themeViewModel.excludedFolders.collectAsState()
             
+            // Cache & Crossfade
+            val cacheEnabled by themeViewModel.cacheEnabled.collectAsState()
+            val maxCacheSizeMb by themeViewModel.maxCacheSizeMb.collectAsState()
+            val currentCacheSize by themeViewModel.currentCacheSizeBytes.collectAsState()
+            val crossfadeEnabled by themeViewModel.crossfadeEnabled.collectAsState()
+            val crossfadeDurationMs by themeViewModel.crossfadeDurationMs.collectAsState()
+            
             val isSystemDark = isSystemInDarkTheme()
             val isDarkTheme = remember(themeMode, isSystemDark) {
                 when (themeMode) {
@@ -87,7 +94,17 @@ class MainActivity : ComponentActivity() {
                     onSaveVideoHistoryToggle = { themeViewModel.setSaveVideoHistory(it) },
                     excludedFolders = excludedFolders,
                     onAddExcludedFolder = { themeViewModel.addExcludedFolder(it) },
-                    onRemoveExcludedFolder = { themeViewModel.removeExcludedFolder(it) }
+                    onRemoveExcludedFolder = { themeViewModel.removeExcludedFolder(it) },
+                    cacheEnabled = cacheEnabled,
+                    onCacheEnabledToggle = { themeViewModel.setCacheEnabled(it) },
+                    maxCacheSizeMb = maxCacheSizeMb,
+                    onMaxCacheSizeMbChange = { themeViewModel.setMaxCacheSizeMb(it) },
+                    currentCacheSize = currentCacheSize,
+                    onClearCacheClick = { themeViewModel.clearCacheAction() },
+                    crossfadeEnabled = crossfadeEnabled,
+                    onCrossfadeEnabledToggle = { themeViewModel.toggleCrossfadeEnabled() },
+                    crossfadeDurationMs = crossfadeDurationMs,
+                    onCrossfadeDurationChange = { themeViewModel.setCrossfadeDuration(it) }
                 )
             }
         }
@@ -128,7 +145,17 @@ fun MusicApp(
     onSaveVideoHistoryToggle: (Boolean) -> Unit,
     excludedFolders: Set<String>,
     onAddExcludedFolder: (String) -> Unit,
-    onRemoveExcludedFolder: (String) -> Unit
+    onRemoveExcludedFolder: (String) -> Unit,
+    cacheEnabled: Boolean,
+    onCacheEnabledToggle: (Boolean) -> Unit,
+    maxCacheSizeMb: Long,
+    onMaxCacheSizeMbChange: (Long) -> Unit,
+    currentCacheSize: Long,
+    onClearCacheClick: () -> Unit,
+    crossfadeEnabled: Boolean,
+    onCrossfadeEnabledToggle: (Boolean) -> Unit,
+    crossfadeDurationMs: Int,
+    onCrossfadeDurationChange: (Int) -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val navController = rememberNavController()
@@ -181,7 +208,17 @@ fun MusicApp(
                     onLogoutClick = { 
                         homeViewModel.logout()
                     },
-                    onBackClick = { navController.popBackStack() }
+                    onBackClick = { navController.popBackStack() },
+                    cacheEnabled = cacheEnabled,
+                    onCacheEnabledToggle = onCacheEnabledToggle,
+                    maxCacheSizeMb = maxCacheSizeMb,
+                    onMaxCacheSizeMbChange = onMaxCacheSizeMbChange,
+                    currentCacheSize = currentCacheSize,
+                    onClearCacheClick = onClearCacheClick,
+                    crossfadeEnabled = crossfadeEnabled,
+                    onCrossfadeEnabledToggle = onCrossfadeEnabledToggle,
+                    crossfadeDurationMs = crossfadeDurationMs,
+                    onCrossfadeDurationChange = onCrossfadeDurationChange
                 )
             }
             composable("downloads") {

@@ -92,6 +92,15 @@ class PlayerViewModel(private val context: Context) : ViewModel() {
         _localPlaylists.map { list ->
             list.map { it.toDisplayItem() }
         }.stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000), emptyList())
+        
+    // Cache & Crossfade Settings exposed for UI
+    private val themePreferences = com.ivor.ivormusic.data.ThemePreferences(context)
+    val cacheEnabled = themePreferences.cacheEnabled
+    val maxCacheSizeMb = themePreferences.maxCacheSizeMb
+    val currentCacheSize = com.ivor.ivormusic.data.CacheManager.currentCacheSizeBytes
+    
+    val crossfadeEnabled = themePreferences.crossfadeEnabled
+    val crossfadeDurationMs = themePreferences.crossfadeDurationMs
 
     init {
         initializeController()
@@ -158,6 +167,16 @@ class PlayerViewModel(private val context: Context) : ViewModel() {
                         // Sync history with YouTube
                         viewModelScope.launch {
                             youTubeRepository.reportPlayback(it.id)
+                        }
+                        
+                        // AUTO-QUEUE: Check if we need to load more songs
+                        val totalItems = controller?.mediaItemCount ?: 0
+                        val currentIndex = controller?.currentMediaItemIndex ?: 0
+                        val itemsRemaining = totalItems - currentIndex
+                        
+                        if (itemsRemaining < 10 && !_isLoadingMore.value) {
+                             android.util.Log.d("PlayerViewModel", "Auto-Queue: $itemsRemaining items remaining, loading more...")
+                             loadMoreRecommendations()
                         }
                     }
                 }
@@ -490,5 +509,25 @@ class PlayerViewModel(private val context: Context) : ViewModel() {
     override fun onCleared() {
         super.onCleared()
         MediaController.releaseFuture(controllerFuture ?: return)
+    }
+    
+    // --- Settings Actions ---
+    
+    fun clearCache() {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            com.ivor.ivormusic.data.CacheManager.clearCache()
+        }
+    }
+    
+    fun setMaxCacheSize(sizeMb: Long) {
+        themePreferences.setMaxCacheSizeMb(sizeMb)
+    }
+    
+    fun toggleCrossfade() {
+        themePreferences.toggleCrossfadeEnabled()
+    }
+    
+    fun setCrossfadeDuration(durationMs: Int) {
+        themePreferences.setCrossfadeDuration(durationMs)
     }
 }

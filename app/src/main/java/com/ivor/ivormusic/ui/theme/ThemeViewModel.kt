@@ -2,6 +2,8 @@ package com.ivor.ivormusic.ui.theme
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 import com.ivor.ivormusic.data.ThemePreferences
 import com.ivor.ivormusic.data.PlayerStyle
 import kotlinx.coroutines.flow.StateFlow
@@ -20,6 +22,14 @@ class ThemeViewModel(application: Application) : AndroidViewModel(application) {
     val playerStyle: StateFlow<PlayerStyle> = themePreferences.playerStyle
     val saveVideoHistory: StateFlow<Boolean> = themePreferences.saveVideoHistory
     val excludedFolders: StateFlow<Set<String>> = themePreferences.excludedFolders
+    
+    // Cache & Crossfade
+    val cacheEnabled: StateFlow<Boolean> = themePreferences.cacheEnabled
+    val maxCacheSizeMb: StateFlow<Long> = themePreferences.maxCacheSizeMb
+    val crossfadeEnabled: StateFlow<Boolean> = themePreferences.crossfadeEnabled
+    val crossfadeDurationMs: StateFlow<Int> = themePreferences.crossfadeDurationMs
+    
+    val currentCacheSizeBytes: StateFlow<Long> = com.ivor.ivormusic.data.CacheManager.currentCacheSizeBytes
 
     fun setThemeMode(mode: ThemeMode) {
         themePreferences.setThemeMode(mode)
@@ -71,5 +81,33 @@ class ThemeViewModel(application: Application) : AndroidViewModel(application) {
     
     fun setExcludedFolders(folders: Set<String>) {
         themePreferences.setExcludedFolders(folders)
+    }
+    
+    // --- Cache Settings ---
+    fun setCacheEnabled(enabled: Boolean) {
+        themePreferences.setCacheEnabled(enabled)
+    }
+    
+    fun setMaxCacheSizeMb(sizeMb: Long) {
+        themePreferences.setMaxCacheSizeMb(sizeMb)
+    }
+    
+    fun clearCacheAction() {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            com.ivor.ivormusic.data.CacheManager.clearCache()
+        }
+    }
+
+    // --- Crossfade Settings ---
+    fun setCrossfadeEnabled(enabled: Boolean) {
+        themePreferences.setCrossfadeEnabled(enabled)
+    }
+    
+    fun toggleCrossfadeEnabled() {
+        themePreferences.toggleCrossfadeEnabled()
+    }
+    
+    fun setCrossfadeDuration(durationMs: Int) {
+        themePreferences.setCrossfadeDuration(durationMs)
     }
 }

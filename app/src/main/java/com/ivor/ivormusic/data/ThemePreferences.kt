@@ -36,6 +36,20 @@ class ThemePreferences(context: Context) {
     
     private val _excludedFolders = MutableStateFlow(getExcludedFoldersPreference())
     val excludedFolders: StateFlow<Set<String>> = _excludedFolders.asStateFlow()
+    
+    // Cache Settings
+    private val _cacheEnabled = MutableStateFlow(getCacheEnabledPreference())
+    val cacheEnabled: StateFlow<Boolean> = _cacheEnabled.asStateFlow()
+    
+    private val _maxCacheSizeMb = MutableStateFlow(getMaxCacheSizeMbPreference())
+    val maxCacheSizeMb: StateFlow<Long> = _maxCacheSizeMb.asStateFlow()
+    
+    // Crossfade Settings
+    private val _crossfadeEnabled = MutableStateFlow(getCrossfadeEnabledPreference())
+    val crossfadeEnabled: StateFlow<Boolean> = _crossfadeEnabled.asStateFlow()
+    
+    private val _crossfadeDurationMs = MutableStateFlow(getCrossfadeDurationPreference())
+    val crossfadeDurationMs: StateFlow<Int> = _crossfadeDurationMs.asStateFlow()
 
     companion object {
         private const val PREFS_NAME = "ivor_music_theme_prefs"
@@ -47,6 +61,10 @@ class ThemePreferences(context: Context) {
         private const val KEY_PLAYER_STYLE = "player_style"
         private const val KEY_SAVE_VIDEO_HISTORY = "save_video_history"
         private const val KEY_EXCLUDED_FOLDERS = "excluded_folders"
+        private const val KEY_CACHE_ENABLED = "cache_enabled"
+        private const val KEY_MAX_CACHE_SIZE_MB = "max_cache_size_mb"
+        private const val KEY_CROSSFADE_ENABLED = "crossfade_enabled"
+        private const val KEY_CROSSFADE_DURATION = "crossfade_duration"
     }
 
     /**
@@ -213,13 +231,54 @@ class ThemePreferences(context: Context) {
         setExcludedFolders(current)
     }
     
-    /**
-     * Remove a folder from the excluded list.
-     */
     fun removeExcludedFolder(folderPath: String) {
         val current = _excludedFolders.value.toMutableSet()
         current.remove(folderPath)
         setExcludedFolders(current)
+    }
+    
+    // --- Cache Settings ---
+    
+    private fun getCacheEnabledPreference(): Boolean {
+        return prefs.getBoolean(KEY_CACHE_ENABLED, true)
+    }
+    
+    fun setCacheEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_CACHE_ENABLED, enabled).apply()
+        _cacheEnabled.value = enabled
+    }
+    
+    private fun getMaxCacheSizeMbPreference(): Long {
+        return prefs.getLong(KEY_MAX_CACHE_SIZE_MB, 512L) // Default 512MB
+    }
+    
+    fun setMaxCacheSizeMb(sizeMb: Long) {
+        prefs.edit().putLong(KEY_MAX_CACHE_SIZE_MB, sizeMb).apply()
+        _maxCacheSizeMb.value = sizeMb
+    }
+    
+    // --- Crossfade Settings ---
+    
+    private fun getCrossfadeEnabledPreference(): Boolean {
+        return prefs.getBoolean(KEY_CROSSFADE_ENABLED, true)
+    }
+    
+    fun setCrossfadeEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_CROSSFADE_ENABLED, enabled).apply()
+        _crossfadeEnabled.value = enabled
+    }
+    
+    fun toggleCrossfadeEnabled() {
+        setCrossfadeEnabled(!_crossfadeEnabled.value)
+    }
+    
+    private fun getCrossfadeDurationPreference(): Int {
+        return prefs.getInt(KEY_CROSSFADE_DURATION, 3000) // Default 3000ms
+    }
+    
+    fun setCrossfadeDuration(durationMs: Int) {
+        prefs.edit().putInt(KEY_CROSSFADE_DURATION, durationMs).apply()
+        _crossfadeDurationMs.value = durationMs
     }
 }
 
