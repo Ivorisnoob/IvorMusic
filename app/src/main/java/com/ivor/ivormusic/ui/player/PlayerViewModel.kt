@@ -106,13 +106,48 @@ class PlayerViewModel(private val context: Context) : ViewModel() {
         initializeController()
         startProgressUpdates()
     }
+    
+    /**
+     * Restore the last played song from preferences (for cold start).
+     * Called after controller connects to prepare the song for resumption.
+     */
+    private fun restoreLastPlayedSong() {
+        val song = themePreferences.getLastPlayedSong() ?: return
+        
+        // Only restore if there's no current song and no items in the controller
+        if (_currentSong.value != null) return
+        if (controller?.mediaItemCount ?: 0 > 0) return
+        
+        android.util.Log.d("PlayerViewModel", "Restoring last played song: ${song.title}")
+        
+        // Set the current song for UI display
+        _currentSong.value = song
+        _currentQueue.value = listOf(song)
+        
+        // Prepare the song in the player (but don't auto-play)
+        val mediaItem = createMediaItem(song)
+        controller?.setMediaItem(mediaItem)
+        controller?.prepare()
+        
+        // Fetch lyrics for this song
+        fetchLyrics(song)
+    }
 
     private fun initializeController() {
         val sessionToken = SessionToken(context, ComponentName(context, MusicService::class.java))
         controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
         
         controllerFuture?.addListener({
-            controller?.addListener(object : Player.Listener {
+            val ctrl = controller ?: return@addListener
+            
+            // SYNC EXISTING SESSION STATE
+            // This runs when we reconnect to an already-playing session
+            syncStateFromController(ctrl)
+            
+            // Restore last played song if there's nothing currently playing
+            restoreLastPlayedSong()
+            
+            ctrl.addListener(object : Player.Listener {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     _isPlaying.value = isPlaying
                     // Clear buffering state when playback actually starts
@@ -129,7 +164,12 @@ class PlayerViewModel(private val context: Context) : ViewModel() {
                     _isBuffering.value = playbackState == Player.STATE_BUFFERING
                     if (playbackState == Player.STATE_READY || playbackState == Player.STATE_ENDED) {
                         _isBuffering.value = false
-                        _duration.value = controller?.duration ?: 0L
+                        // Only set duration if it's a valid positive value
+                        // ExoPlayer returns C.TIME_UNSET (negative) when duration is unknown
+                        val dur = controller?.duration ?: 0L
+                        if (dur > 0) {
+                            _duration.value = dur
+                        }
                     }
                 }
 
@@ -159,10 +199,18 @@ class PlayerViewModel(private val context: Context) : ViewModel() {
                         }
                     }
                     
+                    // If still null, try to reconstruct from MediaItem metadata
+                    if (song == null && mediaItem != null) {
+                        song = extractSongFromMediaItem(mediaItem)
+                    }
+                    
                     song?.let {
                         _currentSong.value = it
                         updateCurrentSongLikedStatus()
                         fetchLyrics(it)
+                        
+                        // Save as last played song for restoration
+                        themePreferences.saveLastPlayedSong(it)
                         
                         // Sync history with YouTube
                         viewModelScope.launch {
@@ -183,6 +231,69 @@ class PlayerViewModel(private val context: Context) : ViewModel() {
             })
         }, MoreExecutors.directExecutor())
     }
+    
+    /**
+     * Sync UI state from an already-connected MediaController.
+     * Called when the app reconnects to a session that's already playing.
+     */
+    private fun syncStateFromController(ctrl: MediaController) {
+        // Sync playback state
+        _isPlaying.value = ctrl.isPlaying
+        _playWhenReady.value = ctrl.playWhenReady
+        _isBuffering.value = ctrl.playbackState == Player.STATE_BUFFERING
+        _duration.value = if (ctrl.duration > 0) ctrl.duration else 0L
+        _progress.value = ctrl.currentPosition
+        _shuffleModeEnabled.value = ctrl.shuffleModeEnabled
+        _repeatMode.value = ctrl.repeatMode
+        
+        // Rebuild queue from MediaSession
+        val itemCount = ctrl.mediaItemCount
+        if (itemCount > 0 && _currentQueue.value.isEmpty()) {
+            val songs = mutableListOf<Song>()
+            for (i in 0 until itemCount) {
+                val mediaItem = ctrl.getMediaItemAt(i)
+                extractSongFromMediaItem(mediaItem)?.let { songs.add(it) }
+            }
+            if (songs.isNotEmpty()) {
+                _currentQueue.value = songs
+            }
+        }
+        
+        // Sync current song
+        val currentMediaItem = ctrl.currentMediaItem
+        if (currentMediaItem != null && _currentSong.value == null) {
+            var song = _currentQueue.value.find { it.id == currentMediaItem.mediaId }
+            if (song == null) {
+                song = extractSongFromMediaItem(currentMediaItem)
+            }
+            song?.let {
+                _currentSong.value = it
+                updateCurrentSongLikedStatus()
+                fetchLyrics(it)
+            }
+        }
+        
+        android.util.Log.d("PlayerViewModel", "Synced state: playing=${_isPlaying.value}, song=${_currentSong.value?.title}, queue=${_currentQueue.value.size} items")
+    }
+    
+    /**
+     * Extract a Song object from a MediaItem's metadata.
+     */
+    private fun extractSongFromMediaItem(mediaItem: MediaItem): Song? {
+        val metadata = mediaItem.mediaMetadata
+        val id = mediaItem.mediaId
+        if (id.isEmpty()) return null
+        
+        return Song(
+            id = id,
+            title = metadata.title?.toString() ?: "Unknown",
+            artist = metadata.artist?.toString() ?: "Unknown Artist",
+            album = metadata.albumTitle?.toString() ?: "",
+            duration = metadata.durationMs ?: 0L,
+            thumbnailUrl = metadata.artworkUri?.toString(),
+            source = com.ivor.ivormusic.data.SongSource.YOUTUBE
+        )
+    }
 
     private fun startProgressUpdates() {
         viewModelScope.launch {
@@ -191,8 +302,16 @@ class PlayerViewModel(private val context: Context) : ViewModel() {
                 controller?.let {
                     val currentPos = it.currentPosition
                     
-                    // Update progress always (to reflect seeking while paused)
-                    _progress.value = currentPos
+                    // Only update progress if it's a valid non-negative value
+                    if (currentPos >= 0) {
+                        _progress.value = currentPos
+                    }
+                    
+                    // Also update duration if it was not set yet (fallback)
+                    val dur = it.duration
+                    if (dur > 0 && _duration.value == 0L) {
+                        _duration.value = dur
+                    }
                     
                     // Update buffering sanity check
                     if (it.isPlaying) {

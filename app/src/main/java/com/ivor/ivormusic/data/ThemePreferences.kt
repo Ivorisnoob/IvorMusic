@@ -65,6 +65,61 @@ class ThemePreferences(context: Context) {
         private const val KEY_MAX_CACHE_SIZE_MB = "max_cache_size_mb"
         private const val KEY_CROSSFADE_ENABLED = "crossfade_enabled"
         private const val KEY_CROSSFADE_DURATION = "crossfade_duration"
+        
+        // Last Played Song persistence
+        private const val KEY_LAST_SONG_ID = "last_song_id"
+        private const val KEY_LAST_SONG_TITLE = "last_song_title"
+        private const val KEY_LAST_SONG_ARTIST = "last_song_artist"
+        private const val KEY_LAST_SONG_ALBUM = "last_song_album"
+        private const val KEY_LAST_SONG_ARTWORK = "last_song_artwork"
+        private const val KEY_LAST_SONG_DURATION = "last_song_duration"
+    }
+    
+    // --- Last Played Song ---
+    
+    /**
+     * Save the last played song for restoration.
+     */
+    fun saveLastPlayedSong(song: Song) {
+        prefs.edit()
+            .putString(KEY_LAST_SONG_ID, song.id)
+            .putString(KEY_LAST_SONG_TITLE, song.title)
+            .putString(KEY_LAST_SONG_ARTIST, song.artist)
+            .putString(KEY_LAST_SONG_ALBUM, song.album)
+            .putString(KEY_LAST_SONG_ARTWORK, song.thumbnailUrl ?: song.albumArtUri?.toString() ?: "")
+            .putLong(KEY_LAST_SONG_DURATION, song.duration)
+            .apply()
+    }
+    
+    /**
+     * Get the last played song, or null if none.
+     */
+    fun getLastPlayedSong(): Song? {
+        val id = prefs.getString(KEY_LAST_SONG_ID, null) ?: return null
+        val artwork = prefs.getString(KEY_LAST_SONG_ARTWORK, "") ?: ""
+        return Song(
+            id = id,
+            title = prefs.getString(KEY_LAST_SONG_TITLE, "Unknown") ?: "Unknown",
+            artist = prefs.getString(KEY_LAST_SONG_ARTIST, "Unknown Artist") ?: "Unknown Artist",
+            album = prefs.getString(KEY_LAST_SONG_ALBUM, "") ?: "",
+            thumbnailUrl = artwork.ifEmpty { null },
+            duration = prefs.getLong(KEY_LAST_SONG_DURATION, 0L),
+            source = SongSource.YOUTUBE
+        )
+    }
+    
+    /**
+     * Clear the last played song.
+     */
+    fun clearLastPlayedSong() {
+        prefs.edit()
+            .remove(KEY_LAST_SONG_ID)
+            .remove(KEY_LAST_SONG_TITLE)
+            .remove(KEY_LAST_SONG_ARTIST)
+            .remove(KEY_LAST_SONG_ALBUM)
+            .remove(KEY_LAST_SONG_ARTWORK)
+            .remove(KEY_LAST_SONG_DURATION)
+            .apply()
     }
 
     /**
