@@ -161,14 +161,15 @@ class MusicService : MediaLibraryService() {
         val cacheDataSourceFactory = com.ivor.ivormusic.data.CacheManager.createCacheDataSourceFactory()
             ?: androidx.media3.datasource.DefaultDataSource.Factory(this)
             
-        // Configure LoadControl for better buffering
+        // Configure LoadControl for instant playback start
         val loadControl = androidx.media3.exoplayer.DefaultLoadControl.Builder()
             .setBufferDurationsMs(
-                30_000, // Min buffer 30s
-                120_000, // Max buffer 2 mins
-                2500, // Buffer for playback 2.5s
-                5000 // Buffer for rebuffer 5s
+                15_000, // Min buffer 15s (was 30s)
+                50_000, // Max buffer 50s (was 120s)
+                250,    // Buffer for playback 0.25s (was 2.5s) - INSTANT START
+                2000    // Buffer for rebuffer 2s (was 5s)
             )
+            .setPrioritizeTimeOverSizeThresholds(true)
             .build()
             
         val renderersFactory = androidx.media3.exoplayer.DefaultRenderersFactory(this)
@@ -798,6 +799,39 @@ class MusicService : MediaLibraryService() {
                 val resolvedItem = resolveStreamUrl(mediaItem, videoId)
                 
                 if (resolvedItem.localConfiguration?.uri != null) {
+                    val uri = resolvedItem.localConfiguration!!.uri
+                    Log.d(TAG, "Prefetched URL for $videoId: $uri")
+                    
+                    // AGGRESSIVE PRE-CACHING
+                    // Actually download the first 500KB of the song to disk cache now
+                    try {
+                        val cacheDataSourceFactory = com.ivor.ivormusic.data.CacheManager.createCacheDataSourceFactory()
+                        if (cacheDataSourceFactory != null) {
+                            val dataSpec = androidx.media3.datasource.DataSpec.Builder()
+                                .setUri(uri)
+                                .setKey(videoId) // Use videoId as cache key
+                                .setLength(512 * 1024) // Pre-load 512KB
+                                .build()
+                            
+                            // Create CacheDataSource and cast it (Factory returns DataSource interface)
+                            val cacheDataSource = cacheDataSourceFactory.createDataSource() as? androidx.media3.datasource.cache.CacheDataSource
+                            
+                            if (cacheDataSource != null) {
+                                val cacheWriter = androidx.media3.datasource.cache.CacheWriter(
+                                    cacheDataSource,
+                                    dataSpec,
+                                    null, // temporary buffer
+                                    null // progress listener
+                                )
+                                
+                                cacheWriter.cache()
+                                Log.d(TAG, "Pre-cached first 512KB for $videoId")
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to pre-cache data for $videoId", e)
+                    }
+                    
                     serviceScope.launch(Dispatchers.Main) {
                         try {
                             if (nextIndex < player.mediaItemCount) {
