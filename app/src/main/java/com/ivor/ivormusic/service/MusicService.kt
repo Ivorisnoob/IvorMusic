@@ -56,7 +56,7 @@ class MusicService : MediaLibraryService() {
         private const val TAG = "MusicService"
         private const val PREFETCH_AHEAD = 3
         private const val STREAM_TIMEOUT_MS = 10000L
-        private const val ANDROID_AUTO_BROWSE_TIMEOUT_MS = 5000L // Android Auto has strict timeout
+        private const val ANDROID_AUTO_BROWSE_TIMEOUT_MS = 30000L // Android Auto timeout (30 seconds)
     }
     
     // Cache for Android Auto browse content to prevent slow loading
@@ -85,6 +85,9 @@ class MusicService : MediaLibraryService() {
         observePreferences()
         
         initializeSessionAndPlayer()
+        
+        // Pre-warm Android Auto cache in background
+        preWarmAutoCache()
     }
     
     private fun observePreferences() {
@@ -101,6 +104,35 @@ class MusicService : MediaLibraryService() {
         serviceScope.launch {
             themePreferences.maxCacheSizeMb.collect { sizeMb ->
                 com.ivor.ivormusic.data.CacheManager.setMaxCacheSize(this@MusicService, sizeMb)
+            }
+        }
+    }
+    
+    /**
+     * Pre-warm the Android Auto content cache in the background.
+     * This ensures that when Android Auto connects, content is ready immediately.
+     */
+    private fun preWarmAutoCache() {
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "Pre-warming Android Auto cache...")
+                
+                // Fetch recommendations
+                val recommendations = youtubeRepository.getRecommendations()
+                if (recommendations.isNotEmpty()) {
+                    cachedRecommendations = recommendations
+                    lastBrowseCacheTime = System.currentTimeMillis()
+                    Log.d(TAG, "Pre-warmed ${recommendations.size} recommendations")
+                }
+                
+                // Fetch playlists
+                val playlists = youtubeRepository.getUserPlaylists()
+                if (playlists.isNotEmpty()) {
+                    cachedPlaylists = playlists
+                    Log.d(TAG, "Pre-warmed ${playlists.size} playlists")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error pre-warming cache", e)
             }
         }
     }
@@ -238,18 +270,71 @@ class MusicService : MediaLibraryService() {
                 controller: MediaSession.ControllerInfo,
                 mediaItems: MutableList<MediaItem>
             ): ListenableFuture<MutableList<MediaItem>> {
-                return serviceScope.future {
+                Log.d(TAG, "onAddMediaItems called with ${mediaItems.size} items from ${controller.packageName}")
+                
+                // Use IO dispatcher for network operations
+                val ioScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+                return ioScope.future {
                     if (mediaItems.size == 1) {
-                         val item = mediaItems[0]
+                         var item = mediaItems[0]
                          val videoId = item.mediaId
-                         // Determine if needs resolution (placeholder or cache key exists)
+                         Log.d(TAG, "Resolving stream for video: $videoId, title: ${item.mediaMetadata.title ?: "null"}")
+                         
+                         // Try to find full metadata in cache if title is missing
+                         if (item.mediaMetadata.title == null) {
+                             val cachedSong = cachedRecommendations?.find { it.id == videoId }
+                                 ?: cachedPlaylistSongs.values.flatten().find { it.id == videoId }
+                                 
+                             if (cachedSong != null) {
+                                 Log.d(TAG, "Restoring metadata from cache for $videoId")
+                                 item = item.buildUpon()
+                                     .setMediaMetadata(
+                                         androidx.media3.common.MediaMetadata.Builder()
+                                             .setTitle(cachedSong.title)
+                                             .setArtist(cachedSong.artist)
+                                             .setAlbumTitle(cachedSong.album)
+                                             .setArtworkUri(android.net.Uri.parse(cachedSong.thumbnailUrl ?: ""))
+                                             .setIsBrowsable(false)
+                                             .setIsPlayable(true)
+                                             .build()
+                                     )
+                                     .build()
+                             }
+                         }
+                         
                          val finalItem = resolveStreamUrl(item, videoId)
+                         Log.d(TAG, "Resolved item URI: ${finalItem.localConfiguration?.uri}")
                             
                          mutableListOf(finalItem)
                     } else {
                         // Batch add, prefetch later
-                        mediaItems.map { 
-                            it.buildUpon().setCustomCacheKey(it.mediaId).build()
+                        Log.d(TAG, "Batch adding ${mediaItems.size} items")
+                        mediaItems.map { mediaItem ->
+                            var item = mediaItem
+                            val videoId = item.mediaId
+                            
+                            // Restore metadata if missing
+                            if (item.mediaMetadata.title == null) {
+                                 val cachedSong = cachedRecommendations?.find { it.id == videoId }
+                                     ?: cachedPlaylistSongs.values.flatten().find { it.id == videoId }
+                                     
+                                 if (cachedSong != null) {
+                                     item = item.buildUpon()
+                                         .setMediaMetadata(
+                                             androidx.media3.common.MediaMetadata.Builder()
+                                                 .setTitle(cachedSong.title)
+                                                 .setArtist(cachedSong.artist)
+                                                 .setAlbumTitle(cachedSong.album)
+                                                 .setArtworkUri(android.net.Uri.parse(cachedSong.thumbnailUrl ?: ""))
+                                                 .setIsBrowsable(false)
+                                                 .setIsPlayable(true)
+                                                 .build()
+                                         )
+                                         .build()
+                                 }
+                            }
+                            
+                            item.buildUpon().setCustomCacheKey(videoId).build()
                         }.toMutableList()
                     }
                 }
@@ -339,6 +424,7 @@ class MusicService : MediaLibraryService() {
                 
                 // For content that requires network calls, use IO dispatcher
                 val ioScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+                Log.w(TAG, "Starting async fetch for parentId: $parentId")
                 return ioScope.future {
                     val items = mutableListOf<MediaItem>()
                     val now = System.currentTimeMillis()
@@ -353,9 +439,13 @@ class MusicService : MediaLibraryService() {
                                     cachedRecommendations!!
                                 } else {
                                     try {
+                                        Log.w(TAG, "Calling getRecommendations with timeout ${ANDROID_AUTO_BROWSE_TIMEOUT_MS}ms")
+                                        val startTime = System.currentTimeMillis()
                                         val result = withTimeoutOrNull(ANDROID_AUTO_BROWSE_TIMEOUT_MS) {
                                             youtubeRepository.getRecommendations()
                                         }
+                                        val elapsed = System.currentTimeMillis() - startTime
+                                        Log.w(TAG, "getRecommendations returned in ${elapsed}ms, result size: ${result?.size ?: "null"}")
                                         if (result != null) {
                                             cachedRecommendations = result
                                             lastBrowseCacheTime = now
@@ -371,7 +461,8 @@ class MusicService : MediaLibraryService() {
                                     }
                                 }
                                 
-                                songs.forEach { song ->
+                                // Filter out songs with empty IDs to prevent error
+                                songs.filter { it.id.isNotEmpty() }.forEach { song ->
                                     items.add(
                                         MediaItem.Builder()
                                             .setMediaId(song.id)
@@ -461,7 +552,8 @@ class MusicService : MediaLibraryService() {
                                             cachedPlaylistSongs[playlistId] ?: emptyList()
                                         }
                                     
-                                    songs.forEach { song ->
+                                    // Filter out songs with empty IDs to prevent error
+                                    songs.filter { it.id.isNotEmpty() }.forEach { song ->
                                         items.add(
                                             MediaItem.Builder()
                                                 .setMediaId(song.id)
