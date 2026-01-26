@@ -265,6 +265,21 @@ class MusicService : MediaLibraryService() {
         }
 
         mediaLibrarySession = MediaLibrarySession.Builder(this, player, object : MediaLibrarySession.Callback {
+            override fun onConnect(
+                session: MediaSession,
+                controller: MediaSession.ControllerInfo
+            ): MediaSession.ConnectionResult {
+                val connectionResult = super.onConnect(session, controller)
+                val availablePlayerCommands = connectionResult.availablePlayerCommands.buildUpon()
+                    .add(Player.COMMAND_SET_SHUFFLE_MODE)
+                    .add(Player.COMMAND_SET_REPEAT_MODE)
+                    .build()
+                return MediaSession.ConnectionResult.accept(
+                    connectionResult.availableSessionCommands,
+                    availablePlayerCommands
+                )
+            }
+
             override fun onAddMediaItems(
                 mediaSession: MediaSession,
                 controller: MediaSession.ControllerInfo,
@@ -304,6 +319,47 @@ class MusicService : MediaLibraryService() {
                          
                          val finalItem = resolveStreamUrl(item, videoId)
                          Log.d(TAG, "Resolved item URI: ${finalItem.localConfiguration?.uri}")
+                         
+                         // Auto-Queue: Fetch related songs in background
+                         val seedTitle = item.mediaMetadata.title?.toString() ?: "Popular Music"
+                         serviceScope.launch(Dispatchers.IO) {
+                             try {
+                                 // Wait briefly to ensure playback starts smoothly first
+                                 kotlinx.coroutines.delay(1000)
+                                 
+                                 Log.d(TAG, "Auto-Queue: Fetching songs related to '$seedTitle'")
+                                 val relatedSongs = youtubeRepository.search("Songs related to $seedTitle", YouTubeRepository.FILTER_SONGS)
+                                     .filter { it.id != videoId } // Exclude current song
+                                     .take(20) // Limit queue size
+                                 
+                                 if (relatedSongs.isNotEmpty()) {
+                                     val newItems = relatedSongs.map { song ->
+                                         MediaItem.Builder()
+                                            .setMediaId(song.id)
+                                            .setUri("https://placeholder.ivormusic/${song.id}")
+                                            .setMediaMetadata(
+                                                androidx.media3.common.MediaMetadata.Builder()
+                                                    .setTitle(song.title)
+                                                    .setArtist(song.artist)
+                                                    .setAlbumTitle(song.album)
+                                                    .setArtworkUri(android.net.Uri.parse(song.thumbnailUrl ?: ""))
+                                                    .build()
+                                            )
+                                            .build()
+                                     }
+                                     
+                                     withContext(Dispatchers.Main) {
+                                         // appending to the player
+                                         if (player.currentMediaItem?.mediaId == videoId) {
+                                             player.addMediaItems(newItems)
+                                             Log.d(TAG, "Auto-Queue: Added ${newItems.size} related songs")
+                                         }
+                                     }
+                                 }
+                             } catch (e: Exception) {
+                                 Log.e(TAG, "Auto-Queue failed", e)
+                             }
+                         }
                             
                          mutableListOf(finalItem)
                     } else {
